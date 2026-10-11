@@ -244,15 +244,44 @@ async function changeQty(pid, delta) {
 
 function vShop() {
   if (!S.listId) return $('view').innerHTML = '<div class="card">Crea prima una lista.</div>';
-  const tot = S.items.length, done = S.items.filter(i => i.status === 'purchased').length;
-  $('view').innerHTML = `
-    <div class="card col"><b>Mancano ${tot - done} prodotti su ${tot}</b>
-      <div class="bar"><i style="width:${tot ? done / tot * 100 : 0}%"></i></div>
+  const items = S.items || [];
+  const toBuy = items.filter(i => i.status !== 'purchased');
+  const bought = items.filter(i => i.status === 'purchased');
+  const tot = toBuy.length + bought.length;
+  const done = bought.length;
+
+  let html = `
+    <div class="card col"><b>Mancano ${toBuy.length} prodotti su ${tot}</b>
+      <div class="bar"><i style="width:${tot ? (done / tot) * 100 : 0}%"></i></div>
       <button class="b ok wide-btn" onclick="closeCart()">✅ Chiudi carrello</button></div>
-    ${S.cats.map(c => { const its = S.items.filter(i => prod(i.product_id)?.category_id === c.id); if (!its.length) return '';
-      return `<h2>${esc(c.name)}</h2>` + its.map(i => { const p = prod(i.product_id), d = i.status === 'purchased';
-        return `<div class="card ${d ? 'done' : ''}" onclick="buy('${i.id}',${!d})"><div class="chk">${d ? '✓' : ''}</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity || 1}</div></div></div>`; }).join(''); }).join('')
-    || '<div class="card">Il carrello è vuoto. Scegli i prodotti dalla pagina Lista.</div>'}`;
+  `;
+
+  if (toBuy.length) {
+    html += S.cats.map(c => {
+      const its = toBuy.filter(i => prod(i.product_id)?.category_id === c.id);
+      if (!its.length) return '';
+      return `<h2>${esc(c.name)}</h2>` + its.map(i => {
+        const p = prod(i.product_id);
+        return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity || 1}</div></div></div>`;
+      }).join('');
+    }).join('');
+  } else {
+    html += '<div class="card">Nessun prodotto da acquistare.</div>';
+  }
+
+  if (bought.length) {
+    html += '<h2>Acquistati</h2>';
+    html += S.cats.map(c => {
+      const its = bought.filter(i => prod(i.product_id)?.category_id === c.id);
+      if (!its.length) return '';
+      return its.map(i => {
+        const p = prod(i.product_id);
+        return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity || 1}</div></div></div>`;
+      }).join('');
+    }).join('');
+  }
+
+  $('view').innerHTML = html;
 }
 async function buy(id, v) { await sb.from('list_items').update({ status: v ? 'purchased' : 'to_buy', updated_at: new Date().toISOString() }).eq('id', id); reload(); }
 async function closeCart() {
