@@ -72,6 +72,7 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 .list-actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 0}
 .list-actions .b{flex:1 1 140px}
+.filter-box{margin:0 0 8px}
 @media (max-width:420px){.card{padding:8px 10px}.qtybox{padding:2px 4px}.list-actions{flex-direction:column}}
 </style>
 </head>
@@ -112,29 +113,23 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let S={cats:[],prods:[],lists:[],items:[],page:'lists',listId:localStorage.getItem('listId'),listName:''};
 let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch{COL={}}
+let filterText='';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const normalize=s=>String(s||'').toLowerCase().trim();
+const matchesFilter=(text,prod)=>!text || normalize(prod.description).includes(normalize(text));
 
-/* ---- categorie comprimibili ---- */
 const colKey=(page,id)=>page+':'+(S.listId||'')+':'+id;
 const isCol=k=>!!COL[k];
 function saveCol(){localStorage.setItem('collapsedCats',JSON.stringify(COL));}
 function toggleCat(k){COL[k]=!COL[k];saveCol();render();}
-function setAll(page,collapse){
-  const ids=S.cats.map(c=>c.id);
-  if(page==='shop')ids.push('bought');
-  ids.forEach(id=>{COL[colKey(page,id)]=collapse;});
-  saveCol();render();
-}
-function catHead(page,id,name,count){
-  const k=colKey(page,id);
-  return `<h2 class="cath" onclick="toggleCat('${k}')"><span class="chev">${isCol(k)?'▸':'▾'}</span><span>${esc(name)}</span><span class="cnt">${count}</span></h2>`;
-}
+function setAll(page,collapse){const ids=S.cats.map(c=>c.id);if(page==='shop')ids.push('bought');ids.forEach(id=>{COL[colKey(page,id)]=collapse;});saveCol();render();}
+function catHead(page,id,name,count){const k=colKey(page,id);return `<h2 class="cath" onclick="toggleCat('${k}')"><span class="chev">${isCol(k)?'▸':'▾'}</span><span>${esc(name)}</span><span class="cnt">${count}</span></h2>`;}
 const expBar=page=>`<div class="expbar"><button class="b gh" onclick="setAll('${page}',false)">▾ Espandi tutto</button><button class="b gh" onclick="setAll('${page}',true)">▸ Comprimi tutto</button></div>`;
 
 async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
 sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;if(session)reload();});
-async function reload(){const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);S.lists=l.data||[];if(!S.lists.find(x=>x.id===S.listId))S.listId=S.lists[0]?.id||null;S.cats=(c.data||[]).filter(x=>x.list_id===S.listId);S.prods=(p.data||[]).filter(x=>x.list_id===S.listId);S.listName=curList()?.name||'';if(S.listId){const i=await sb.from('list_items').select('*').eq('list_id',S.listId);S.items=i.data||[]}else S.items=[];render();}
+async function reload(){const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);S.lists=l.data||[];if(!S.lists.find(x=>x.id===S.listId))S.listId=S.lists[0]?.id||null;S.cats=(c.data||[]).filter(x=>x.list_id===S.listId).sort((a,b)=>Number(a.position)-Number(b.position));S.prods=(p.data||[]).filter(x=>x.list_id===S.listId).sort((a,b)=>((a.description||'').localeCompare(b.description||'')));S.listName=curList()?.name||'';if(S.listId){const i=await sb.from('list_items').select('*').eq('list_id',S.listId);S.items=i.data||[]}else S.items=[];render();}
 function go(p){S.page=p;render();}
 const curList=()=>S.lists.find(l=>l.id===S.listId);
 const prod=id=>S.prods.find(p=>p.id===id);
@@ -161,9 +156,17 @@ async function renCat(id){const n=prompt('Nuovo nome:');if(n){await sb.from('cat
 async function delCat(id){if(!confirm('Eliminare la categoria?')) return;const r=await sb.from('categories').delete().eq('id',id);if(r.error) alert('Categoria in uso da dei prodotti.');reload();}
 
 function vProds(){
-  const keepD=$('pd')?.value||'';
-  $('view').innerHTML=`<div class="card col"><input id="pd" placeholder="Descrizione prodotto"><select id="pc">${S.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">📷 Foto</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">Aggiungi prodotto</button></div>${expBar('prods')}${S.cats.map(c=>{const ps=S.prods.filter(p=>p.category_id===c.id);if(!ps.length) return '';return catHead('prods',c.id,c.name,ps.length)+(isCol(colKey('prods',c.id))?'':ps.map(p=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="small-actions"><button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div></div></div>`).join(''));}).join('')}`;
-  if(keepD) $('pd').value=keepD;
+  const orderedCats = [...S.cats].sort((a,b)=>Number(a.position)-Number(b.position));
+  const filtered = orderedCats.map(c => ({
+    cat: c,
+    prods: S.prods.filter(p => p.category_id === c.id && matchesFilter(filterText, p)).sort((a,b)=>a.description.localeCompare(b.description))
+  })).filter(x => x.prods.length > 0);
+  $('view').innerHTML=`
+    <div class="card filter-box"><input id="prodFilter" placeholder="Cerca prodotto..." value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>
+    ${expBar('prods')}
+    ${filtered.map(({cat,prods}) => catHead('prods',cat.id,cat.name,prods.length) + (isCol(colKey('prods',cat.id)) ? '' : prods.map(p => `<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="small-actions"><button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div></div></div>`).join(''))).join('') || '<div class="card">Nessun prodotto trovato.</div>'}
+    <div class="card col"><input id="pd" placeholder="Descrizione prodotto"><select id="pc">${orderedCats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">📷 Foto</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">Aggiungi prodotto</button></div>
+  `;
 }
 async function addProd(){const d=$('pd').value.trim(),c=$('pc').value;if(!d||!c) return alert('Inserisci descrizione e categoria');let url=null;const f=$('pi').files[0];if(f){const path=crypto.randomUUID()+'-'+f.name.replace(/[^\w.]/g,'_');const u=await sb.storage.from('product-images').upload(path,f);if(u.error) return alert(u.error.message);url=sb.storage.from('product-images').getPublicUrl(path).data.publicUrl}const r=await sb.from('products').insert({description:d,category_id:c,image_url:url,list_id:S.listId});if(r.error) alert(r.error.message);reload();}
 async function editProd(id){const p=prod(id);const n=prompt('Descrizione:',p.description);if(n){await sb.from('products').update({description:n}).eq('id',id);reload();}}
@@ -171,8 +174,9 @@ async function delProd(id){if(confirm('Eliminare il prodotto?')){await sb.from('
 
 function vPick(){
   if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';
-  const body=S.cats.map(c=>{
-    const ps=S.prods.filter(p=>p.category_id===c.id);
+  const orderedCats = [...S.cats].sort((a,b)=>Number(a.position)-Number(b.position));
+  const body=orderedCats.map(c=>{
+    const ps=S.prods.filter(p=>p.category_id===c.id && matchesFilter(filterText,p));
     if(!ps.length) return '';
     const nSel=ps.filter(p=>S.items.find(i=>i.product_id===p.id)).length;
     return catHead('pick',c.id,c.name,nSel?`${nSel}/${ps.length}`:ps.length)+(isCol(colKey('pick',c.id))?'':ps.map(p=>{
@@ -182,7 +186,7 @@ function vPick(){
       return `<div class="card ${selected?'sel':''}" onclick="toggleItem('${p.id}')"><div class="chk">${selected?'✓':''}</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="qtybox" onclick="event.stopPropagation();"><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', -1)">−</button><span>${qty}</span><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', 1)">+</button></div></div>`;
     }).join(''));
   }).join('');
-  $('view').innerHTML=body?expBar('pick')+body:'<div class="card">Nessun prodotto: aggiungili dalla pagina Prodotti.</div>';
+  $('view').innerHTML=`<div class="card filter-box"><input id="pickFilter" placeholder="Cerca prodotto..." value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>${expBar('pick')}${body || '<div class="card">Nessun prodotto trovato.</div>'}`;
 }
 async function toggleItem(pid){const ex=S.items.find(i=>i.product_id===pid);if(ex){await sb.from('list_items').delete().eq('id',ex.id);}else{await sb.from('list_items').insert({list_id:S.listId,product_id:pid,quantity:1,status:'to_buy'});}reload();}
 async function changeQty(pid,delta){const item=S.items.find(i=>i.product_id===pid);const current=item?Number(item.quantity||1):1;const next=Math.max(1,current+delta);if(!item){await sb.from('list_items').insert({list_id:S.listId,product_id:pid,quantity:next,status:'to_buy'});}else{await sb.from('list_items').update({quantity:next}).eq('id',item.id);}reload();}
@@ -195,10 +199,11 @@ function vShop(){
   const tot=toBuy.length+bought.length;
   const done=bought.length;
   let html=`<div class="card col"><b>Mancano ${toBuy.length} prodotti su ${tot}</b><div class="bar"><i style="width:${tot?(done/tot)*100:0}%"></i></div><button class="b ok wide-btn" onclick="closeCart()">✅ Chiudi carrello</button></div>`;
+  html+=`<div class="card filter-box"><input id="shopFilter" placeholder="Cerca prodotto..." value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>`;
   html+=expBar('shop');
   if(toBuy.length){
     html+=S.cats.map(c=>{
-      const its=toBuy.filter(i=>prod(i.product_id)?.category_id===c.id);
+      const its=toBuy.filter(i=>prod(i.product_id)?.category_id===c.id && matchesFilter(filterText, prod(i.product_id)));
       if(!its.length) return '';
       return catHead('shop',c.id,c.name,its.length)+(isCol(colKey('shop',c.id))?'':its.map(i=>{const p=prod(i.product_id);return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join(''));
     }).join('');
@@ -206,12 +211,15 @@ function vShop(){
     html+='<div class="card">Nessun prodotto da acquistare.</div>';
   }
   if(bought.length){
-    html+=catHead('shop','bought','Acquistati',bought.length);
-    if(!isCol(colKey('shop','bought'))){
-      html+=S.cats.map(c=>{
-        const its=bought.filter(i=>prod(i.product_id)?.category_id===c.id);
-        return its.map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join('');
-      }).join('');
+    const boughtVisible = bought.filter(i=>matchesFilter(filterText, prod(i.product_id)));
+    if(boughtVisible.length){
+      html+=catHead('shop','bought','Acquistati',boughtVisible.length);
+      if(!isCol(colKey('shop','bought'))){
+        html+=S.cats.map(c=>{
+          const its=boughtVisible.filter(i=>prod(i.product_id)?.category_id===c.id);
+          return its.map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join('');
+        }).join('');
+      }
     }
   }
   $('view').innerHTML=html;
