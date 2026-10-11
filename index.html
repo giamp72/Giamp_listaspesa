@@ -27,7 +27,7 @@ button.b:active{transform:scale(.98)}
 button.b.ok{background:var(--ok)}
 button.b.gh{background:#eef2ff;color:var(--pri)}
 button.b.rd{background:#fee2e2;color:#b91c1c}
-img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#eee;flex:none;border:1px solid #eef2ff}
+img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#eee;flex:none;border:1px solid #eef2ff;cursor:pointer}
 .chk{width:24px;height:24px;border-radius:8px;border:2px solid var(--bd);display:grid;place-items:center;flex:none;font-size:15px;color:#fff}
 .done .chk{background:var(--ok);border-color:var(--ok)}
 .sel .chk{background:var(--pri);border-color:var(--pri)}
@@ -47,6 +47,11 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#ee
 .product-meta{font-size:12px;color:var(--mu);margin-top:2px}
 .wide-btn{width:100%}
 .list-avatar{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;background:var(--soft);font-size:18px}
+.product-photo{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#eee;flex:none;border:1px solid #eef2ff;cursor:pointer}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal.open{display:flex}
+.modal img{max-width:100%;max-height:88vh;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.4);background:#fff}
+.modal .close{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:999px;border:0;background:#fff;color:#111827;font-size:22px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.22)}
 @media (max-width:420px){
   .card{padding:8px 10px}
   .qtybox{padding:2px 4px}
@@ -81,6 +86,11 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#ee
     <button data-p="pick" onclick="go('pick')"><span>➕</span>Lista</button>
     <button data-p="shop" onclick="go('shop')"><span>🛍️</span>Spesa</button>
   </nav>
+</div>
+
+<div id="photoModal" class="modal" onclick="closePhotoModal(event)">
+  <button class="close" aria-label="Chiudi" onclick="hidePhotoModal()">×</button>
+  <img id="photoModalImg" alt="Foto prodotto ingrandita">
 </div>
 
 <script>
@@ -120,7 +130,7 @@ async function reload() {
 function go(p) { S.page = p; render(); }
 const curList = () => S.lists.find(l => l.id === S.listId);
 const prod = id => S.prods.find(p => p.id === id);
-const thumb = p => p?.image_url ? `<img class="th" src="${esc(p.image_url)}">` : `<div class="list-avatar">🛒</div>`;
+const thumb = p => p?.image_url ? `<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" onclick="openPhotoModal('${esc(p.image_url)}')">` : `<div class="list-avatar">🛒</div>`;
 
 function render() {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.p === S.page));
@@ -248,6 +258,18 @@ async function buy(id, v) { await sb.from('list_items').update({ status: v ? 'pu
 async function closeCart() {
   if (!confirm('Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.')) return;
   await sb.from('list_items').delete().eq('list_id', S.listId).eq('status', 'purchased'); reload();
+}
+
+function openPhotoModal(url) {
+  $('photoModalImg').src = url;
+  $('photoModal').classList.add('open');
+}
+function hidePhotoModal() {
+  $('photoModal').classList.remove('open');
+  $('photoModalImg').src = '';
+}
+function closePhotoModal(event) {
+  if (event.target.id === 'photoModal') hidePhotoModal();
 }
 </script>
 </body>
