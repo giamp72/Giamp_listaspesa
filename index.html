@@ -2,40 +2,41 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Lista della Spesa</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--bg:#f4f6fb;--card:#fff;--pri:#4f46e5;--ok:#16a34a;--tx:#1f2937;--mu:#6b7280;--bd:#e5e7eb}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:80px}
-header{background:var(--pri);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
-header h1{font-size:18px;margin:0}
-main{max-width:720px;margin:0 auto;padding:16px}
-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:8px 0;z-index:5}
-nav button{background:none;border:0;font-size:12px;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
-nav button span{font-size:20px}
-nav button.on{color:var(--pri);font-weight:600}
-.card{background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:10px}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:76px;font-size:14px}
+header{background:var(--pri);color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:5}
+header h1{font-size:15px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+main{max-width:760px;margin:0 auto;padding:10px}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:6px 0;z-index:5}
+nav button{background:none;border:0;font-size:11px;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;padding:4px 0;min-width:0}
+nav button span{font-size:18px;line-height:1}
+nav button.on{color:var(--pri);font-weight:700}
+.card{background:var(--card);border-radius:12px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:8px}
 .card.col{flex-direction:column;align-items:stretch}
-.grow{flex:1}
-h2{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu);margin:18px 4px 8px}
-input,select{padding:10px;border:1px solid var(--bd);border-radius:10px;font-size:15px;width:100%}
-button.b{background:var(--pri);color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:15px;cursor:pointer}
+.grow{flex:1;min-width:0}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:14px 4px 6px}
+input,select{padding:10px;border:1px solid var(--bd);border-radius:10px;font-size:14px;width:100%}
+button.b{background:var(--pri);color:#fff;border:0;border-radius:10px;padding:9px 12px;font-size:14px;cursor:pointer;white-space:nowrap}
 button.b.ok{background:var(--ok)} button.b.gh{background:#eef2ff;color:var(--pri)} button.b.rd{background:#fee2e2;color:#b91c1c}
-.row{display:flex;gap:8px}
-img.th{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#eee}
-.chk{width:26px;height:26px;border-radius:8px;border:2px solid var(--bd);display:grid;place-items:center;flex:none;font-size:16px;color:#fff}
+img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#eee;flex:none}
+.chk{width:24px;height:24px;border-radius:8px;border:2px solid var(--bd);display:grid;place-items:center;flex:none;font-size:15px;color:#fff}
 .done .chk{background:var(--ok);border-color:var(--ok)}
 .sel .chk{background:var(--pri);border-color:var(--pri)}
 .done .t{text-decoration:line-through;color:var(--mu)}
-.bar{height:10px;background:#e0e7ff;border-radius:99px;overflow:hidden;margin:8px 0}
+.bar{height:9px;background:#e0e7ff;border-radius:99px;overflow:hidden;margin:8px 0}
 .bar i{display:block;height:100%;background:var(--ok);transition:width .3s}
-.mu{color:var(--mu);font-size:13px}
-#login{max-width:340px;margin:80px auto;padding:20px}
-.qtybox{display:flex;align-items:center;gap:8px;border:1px solid var(--bd);border-radius:10px;padding:4px 6px;background:#f8fafc}
-.qtybox button{width:28px;height:28px;border-radius:8px;border:0;background:#eef2ff;color:var(--pri);font-size:18px;font-weight:700;cursor:pointer}
-.qtybox span{min-width:22px;text-align:center;font-weight:700}
+.mu{color:var(--mu);font-size:12px}
+#login{max-width:360px;margin:56px auto;padding:16px}
+.qtybox{display:flex;align-items:center;gap:6px;border:1px solid var(--bd);border-radius:10px;padding:3px 5px;background:#f8fafc;flex:none}
+.qtybox button{width:28px;height:28px;border-radius:8px;border:0;background:#eef2ff;color:var(--pri);font-size:18px;font-weight:700;cursor:pointer;line-height:1}
+.qtybox span{min-width:20px;text-align:center;font-weight:700;font-size:13px}
+.small-actions{display:flex;gap:6px;flex-wrap:wrap}
+.camera-label{display:inline-flex;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
@@ -53,8 +54,8 @@ img.th{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#ee
 <div id="app" hidden>
   <header>
     <h1 id="title">🛒 Spesa</h1>
-    <div>
-      <button class="b gh" onclick="reload()" title="Aggiorna">🔄 Aggiorna</button>
+    <div class="small-actions">
+      <button class="b gh" onclick="reload()" title="Aggiorna">🔄</button>
       <button class="b gh" onclick="sb.auth.signOut()">Esci</button>
     </div>
   </header>
@@ -130,7 +131,7 @@ async function delList(id) { if (confirm('Eliminare la lista?')) { await sb.from
 function vCats() {
   $('view').innerHTML = `
     <div class="card"><input id="nc" placeholder="Nuova categoria"><button class="b" onclick="addCat()">Aggiungi</button></div>
-    <div class="mu" style="margin:0 4px 8px">L'ordine qui è l'ordine di visualizzazione nella spesa.</div>
+    <div class="mu" style="margin:0 4px 8px">Ordine di visualizzazione nella spesa.</div>
     ${S.cats.map((c, i) => `<div class="card"><div class="grow"><b>${esc(c.name)}</b></div>
       <button class="b gh" ${i === 0 ? 'disabled' : ''} onclick="moveCat(${i},-1)">▲</button>
       <button class="b gh" ${i === S.cats.length - 1 ? 'disabled' : ''} onclick="moveCat(${i},1)">▼</button>
@@ -152,7 +153,10 @@ function vProds() {
     <div class="card col">
       <input id="pd" placeholder="Descrizione prodotto">
       <select id="pc">${S.cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
-      <input id="pi" type="file" accept="image/*">
+      <div class="row" style="align-items:center">
+        <label class="b gh camera-label" for="pi">📷 Scatta foto</label>
+        <input id="pi" type="file" accept="image/*" capture="environment" style="display:none">
+      </div>
       <button class="b" onclick="addProd()">Aggiungi prodotto</button>
     </div>
     ${S.cats.map(c => { const ps = S.prods.filter(p => p.category_id === c.id); if (!ps.length) return '';
@@ -174,8 +178,6 @@ async function delProd(id) { if (confirm('Eliminare il prodotto?')) { await sb.f
 
 function vPick() {
   if (!S.listId) return $('view').innerHTML = '<div class="card">Crea prima una lista.</div>';
-  const inCart = new Set(S.items.map(i => i.product_id));
-
   $('view').innerHTML = S.cats.map(c => {
     const ps = S.prods.filter(p => p.category_id === c.id);
     if (!ps.length) return '';
@@ -196,34 +198,21 @@ function vPick() {
     }).join('');
   }).join('') || '<div class="card">Nessun prodotto: aggiungili dalla pagina Prodotti.</div>';
 }
-
 async function toggleItem(pid) {
   const ex = S.items.find(i => i.product_id === pid);
   if (ex) {
     await sb.from('list_items').delete().eq('id', ex.id);
   } else {
-    await sb.from('list_items').insert({
-      list_id: S.listId,
-      product_id: pid,
-      quantity: 1,
-      status: 'to_buy'
-    });
+    await sb.from('list_items').insert({ list_id: S.listId, product_id: pid, quantity: 1, status: 'to_buy' });
   }
   reload();
 }
-
 async function changeQty(pid, delta) {
   const item = S.items.find(i => i.product_id === pid);
   const current = item ? Number(item.quantity || 1) : 1;
   const next = Math.max(1, current + delta);
-
   if (!item) {
-    await sb.from('list_items').insert({
-      list_id: S.listId,
-      product_id: pid,
-      quantity: next,
-      status: 'to_buy'
-    });
+    await sb.from('list_items').insert({ list_id: S.listId, product_id: pid, quantity: next, status: 'to_buy' });
   } else {
     await sb.from('list_items').update({ quantity: next }).eq('id', item.id);
   }
