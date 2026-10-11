@@ -71,6 +71,19 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .modal.open{display:flex}
 .modal img{max-width:100%;max-height:88vh;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.6);background:#111}
 .modal .close{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:999px;border:1px solid var(--bd);background:#1c1c1c;color:#f1f1f1;font-size:22px;cursor:pointer}
+.menu-wrap{position:relative}
+.menu{position:absolute;right:0;top:44px;background:#101010;border:1px solid var(--bd);border-radius:12px;min-width:220px;box-shadow:0 12px 30px rgba(0,0,0,.45);overflow:hidden;display:none;z-index:60}
+.menu.open{display:block}
+.menu button{width:100%;background:none;border:0;color:var(--tx);padding:12px 14px;text-align:left;font-size:14px;cursor:pointer;border-bottom:1px solid var(--bd)}
+.menu button:last-child{border-bottom:0}
+.menu button:hover{background:#1b1b1b}
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:55}
+.backdrop.open{display:block}
+.modal-panel{background:#101010;border:1px solid var(--bd);border-radius:14px;max-width:560px;width:100%;padding:14px}
+.modal-panel h3{margin:0 0 8px;font-size:16px}
+.modal-panel p{margin:8px 0;color:var(--mu);line-height:1.45}
+.modal-panel textarea{min-height:280px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;font-size:12px;line-height:1.5;resize:vertical}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 @media (max-width:420px){
   .card{padding:8px 10px}
   .qtybox{padding:2px 4px}
@@ -94,6 +107,13 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
     <h1 id="title">🛒 Spesa</h1>
     <div class="small-actions">
       <button class="b gh" onclick="reload()" title="Aggiorna">🔄</button>
+      <div class="menu-wrap">
+        <button class="b gh" onclick="toggleMenu()" title="Menu">⚙️</button>
+        <div id="gearMenu" class="menu">
+          <button onclick="openExportModal()">Esporta JSON</button>
+          <button onclick="openImportModal()">Importa JSON</button>
+        </div>
+      </div>
       <button class="b gh" onclick="sb.auth.signOut()">Esci</button>
     </div>
   </header>
@@ -112,12 +132,15 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
   <img id="photoModalImg" alt="Foto prodotto ingrandita">
 </div>
 
+<div id="overlay" class="backdrop" onclick="closeDialog(event)"></div>
+<div id="dialogHost" style="position:fixed;inset:0;z-index:56;display:none;align-items:center;justify-content:center;padding:16px;"></div>
+
 <script>
 const SUPABASE_URL = 'https://tdagxuyvckiageppiwbh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let S = { cats: [], prods: [], lists: [], items: [], page: 'lists', listId: localStorage.getItem('listId') };
+let S = { cats: [], prods: [], lists: [], items: [], page: 'lists', listId: localStorage.getItem('listId'), listName: '' };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -140,6 +163,7 @@ async function reload() {
   ]);
   S.cats = c.data || []; S.prods = p.data || []; S.lists = l.data || [];
   if (!S.lists.find(x => x.id === S.listId)) S.listId = S.lists[0]?.id || null;
+  S.listName = curList()?.name || '';
   if (S.listId) {
     const i = await sb.from('list_items').select('*').eq('list_id', S.listId);
     S.items = i.data || [];
@@ -155,6 +179,127 @@ function render() {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.p === S.page));
   $('title').textContent = '🛒 ' + (curList()?.name || 'Spesa');
   ({ lists: vLists, cats: vCats, prods: vProds, pick: vPick, shop: vShop })[S.page]();
+}
+
+function toggleMenu(){
+  $('gearMenu').classList.toggle('open');
+  $('overlay').classList.toggle('open');
+  $('dialogHost').style.display = 'none';
+}
+function closeMenu(){ $('gearMenu').classList.remove('open'); if (!$('dialogHost').innerHTML) $('overlay').classList.remove('open'); }
+function closeDialog(event){ if (event.target.id === 'overlay') { $('dialogHost').style.display='none'; $('dialogHost').innerHTML=''; $('overlay').classList.remove('open'); closeMenu(); } }
+function showDialog(html){ $('dialogHost').innerHTML = html; $('dialogHost').style.display='flex'; $('overlay').classList.add('open'); $('gearMenu').classList.remove('open'); }
+function hideDialog(){ $('dialogHost').style.display='none'; $('dialogHost').innerHTML=''; $('overlay').classList.remove('open'); }
+
+function openExportModal(){
+  if (!S.listId) return alert('Seleziona una lista prima di esportare.');
+  const json = exportListJson();
+  showDialog(`
+    <div class="modal-panel">
+      <h3>Esporta JSON</h3>
+      <p>Verrà scaricato un file con il nome della lista attiva. Il file contiene solo <b>categorie</b> e <b>prodotti</b>, incluse le immagini quando presenti.</p>
+      <textarea readonly>${esc(JSON.stringify(json, null, 2))}</textarea>
+      <div class="modal-actions">
+        <button class="b gh" onclick="hideDialog()">Chiudi</button>
+        <button class="b" onclick="downloadExport()">Scarica JSON</button>
+      </div>
+    </div>
+  `);
+}
+function openImportModal(){
+  if (!S.listId) return alert('Seleziona una lista prima di importare.');
+  showDialog(`
+    <div class="modal-panel">
+      <h3>Importa JSON</h3>
+      <p><b>ATTENZIONE:</b> l'importazione <b>SOVRASCRIVE TUTTI</b> i dati di <b>categorie</b> e <b>prodotti</b> della lista attiva. I dati attuali verranno persi.</p>
+      <input id="importFile" type="file" accept="application/json,.json">
+      <div class="modal-actions">
+        <button class="b gh" onclick="hideDialog()">Annulla</button>
+        <button class="b rd" onclick="confirmImport()">Importa e sovrascrivi</button>
+      </div>
+    </div>
+  `);
+}
+function exportListJson(){
+  const list = curList();
+  const cats = S.cats.slice().sort((a,b)=>a.position-b.position);
+  const productsByCat = {};
+  cats.forEach(cat => {
+    productsByCat[cat.name] = S.prods.filter(p => p.category_id === cat.id).map(p => ({
+      descrizione: p.description,
+      immagine: p.image_url || null
+    }));
+  });
+  return {
+    lista: list?.name || 'lista',
+    categorie: cats.map(c => c.name),
+    prodotti: productsByCat
+  };
+}
+function downloadExport(){
+  const list = curList();
+  const data = JSON.stringify(exportListJson(), null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${sanitizeFileName(list?.name || 'lista')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function sanitizeFileName(name){ return String(name).trim().replace(/[\\/:*?"<>|]+/g,'_') || 'lista'; }
+async function confirmImport(){
+  const file = $('importFile').files[0];
+  if (!file) return alert('Seleziona un file JSON da importare.');
+  if (!confirm('ATTENZIONE: questa operazione cancellerà tutte le categorie e i prodotti attuali della lista selezionata. Procedere?')) return;
+  let parsed;
+  try { parsed = JSON.parse(await file.text()); }
+  catch { return alert('Il file non è un JSON valido.'); }
+  await importJsonToCurrentList(parsed);
+  hideDialog();
+  reload();
+}
+async function importJsonToCurrentList(data){
+  if (!S.listId) throw new Error('Nessuna lista selezionata.');
+  if (!data || !Array.isArray(data.categorie) || typeof data.prodotti !== 'object') {
+    alert('Formato JSON non valido.');
+    return;
+  }
+  const listId = S.listId;
+  const listName = curList()?.name || '';
+
+  const existingProds = await sb.from('products').select('id').eq('list_id', listId);
+  const existingCats = await sb.from('categories').select('id').eq('list_id', listId);
+  const oldProdIds = (existingProds.data || []).map(x => x.id);
+  const oldCatIds = (existingCats.data || []).map(x => x.id);
+
+  if (oldProdIds.length) await sb.from('list_items').delete().eq('list_id', listId).in('product_id', oldProdIds);
+  if (oldCatIds.length) await sb.from('products').delete().eq('list_id', listId);
+  await sb.from('categories').delete().eq('list_id', listId);
+
+  const categoryMap = new Map();
+  for (let i = 0; i < data.categorie.length; i++) {
+    const name = data.categorie[i];
+    const ins = await sb.from('categories').insert({ list_id: listId, name, position: i }).select().single();
+    if (ins.data) categoryMap.set(name, ins.data.id);
+  }
+
+  for (const catName of data.categorie) {
+    const catId = categoryMap.get(catName);
+    const items = Array.isArray(data.prodotti[catName]) ? data.prodotti[catName] : [];
+    for (const item of items) {
+      const obj = typeof item === 'string' ? { descrizione: item, immagine: null } : item;
+      if (!obj.descrizione) continue;
+      await sb.from('products').insert({
+        list_id: listId,
+        description: obj.descrizione,
+        category_id: catId,
+        image_url: obj.immagine || null
+      });
+    }
+  }
 }
 
 function vLists() {
@@ -183,7 +328,7 @@ function vCats() {
 }
 async function addCat() { const n = $('nc').value.trim(); if (!n) return;
   const pos = S.cats.length ? Math.max(...S.cats.map(c => c.position)) + 1 : 0;
-  const r = await sb.from('categories').insert({ name: n, position: pos }); if (r.error) alert(r.error.message); reload(); }
+  const r = await sb.from('categories').insert({ name: n, position: pos, list_id: S.listId }); if (r.error) alert(r.error.message); reload(); }
 async function moveCat(i, d) { const a = S.cats[i], b = S.cats[i + d]; if (!b) return;
   const arr = [...S.cats]; [arr[i], arr[i + d]] = [arr[i + d], arr[i]];
   await Promise.all(arr.map((c, k) => sb.from('categories').update({ position: k }).eq('id', c.id))); reload(); }
@@ -212,7 +357,7 @@ async function addProd() {
     const u = await sb.storage.from('product-images').upload(path, f);
     if (u.error) return alert(u.error.message);
     url = sb.storage.from('product-images').getPublicUrl(path).data.publicUrl; }
-  const r = await sb.from('products').insert({ description: d, category_id: c, image_url: url });
+  const r = await sb.from('products').insert({ description: d, category_id: c, image_url: url, list_id: S.listId });
   if (r.error) alert(r.error.message); reload();
 }
 async function editProd(id) { const p = prod(id); const n = prompt('Descrizione:', p.description); if (n) { await sb.from('products').update({ description: n }).eq('id', id); reload(); } }
