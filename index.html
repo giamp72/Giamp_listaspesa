@@ -33,7 +33,9 @@ img.th{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#ee
 .bar i{display:block;height:100%;background:var(--ok);transition:width .3s}
 .mu{color:var(--mu);font-size:13px}
 #login{max-width:340px;margin:80px auto;padding:20px}
-.qty{width:80px;max-width:80px}
+.qtybox{display:flex;align-items:center;gap:8px;border:1px solid var(--bd);border-radius:10px;padding:4px 6px;background:#f8fafc}
+.qtybox button{width:28px;height:28px;border-radius:8px;border:0;background:#eef2ff;color:var(--pri);font-size:18px;font-weight:700;cursor:pointer}
+.qtybox span{min-width:22px;text-align:center;font-weight:700}
 </style>
 </head>
 <body>
@@ -173,22 +175,57 @@ async function delProd(id) { if (confirm('Eliminare il prodotto?')) { await sb.f
 function vPick() {
   if (!S.listId) return $('view').innerHTML = '<div class="card">Crea prima una lista.</div>';
   const inCart = new Set(S.items.map(i => i.product_id));
-  $('view').innerHTML = S.cats.map(c => { const ps = S.prods.filter(p => p.category_id === c.id); if (!ps.length) return '';
-    return `<h2>${esc(c.name)}</h2>` + ps.map(p => `<div class="card ${inCart.has(p.id) ? 'sel' : ''}" onclick="toggleItem('${p.id}')">
-      <div class="chk">${inCart.has(p.id) ? '✓' : ''}</div>${thumb(p)}<div class="grow t">${esc(p.description)}</div></div>`).join(''); }).join('')
-    || '<div class="card">Nessun prodotto: aggiungili dalla pagina Prodotti.</div>';
+
+  $('view').innerHTML = S.cats.map(c => {
+    const ps = S.prods.filter(p => p.category_id === c.id);
+    if (!ps.length) return '';
+    return `<h2>${esc(c.name)}</h2>` + ps.map(p => {
+      const item = S.items.find(i => i.product_id === p.id);
+      const qty = item ? Number(item.quantity || 1) : 1;
+      const selected = !!item;
+      return `<div class="card ${selected ? 'sel' : ''}" onclick="toggleItem('${p.id}')">
+        <div class="chk">${selected ? '✓' : ''}</div>
+        ${thumb(p)}
+        <div class="grow t">${esc(p.description)}</div>
+        <div class="qtybox" onclick="event.stopPropagation();">
+          <button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', -1)">−</button>
+          <span>${qty}</span>
+          <button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', 1)">+</button>
+        </div>
+      </div>`;
+    }).join('');
+  }).join('') || '<div class="card">Nessun prodotto: aggiungili dalla pagina Prodotti.</div>';
 }
+
 async function toggleItem(pid) {
   const ex = S.items.find(i => i.product_id === pid);
   if (ex) {
     await sb.from('list_items').delete().eq('id', ex.id);
   } else {
-    const qty = Number(prompt('Quantità:', '1') || '1');
     await sb.from('list_items').insert({
       list_id: S.listId,
       product_id: pid,
-      quantity: qty > 0 ? qty : 1
+      quantity: 1,
+      status: 'to_buy'
     });
+  }
+  reload();
+}
+
+async function changeQty(pid, delta) {
+  const item = S.items.find(i => i.product_id === pid);
+  const current = item ? Number(item.quantity || 1) : 1;
+  const next = Math.max(1, current + delta);
+
+  if (!item) {
+    await sb.from('list_items').insert({
+      list_id: S.listId,
+      product_id: pid,
+      quantity: next,
+      status: 'to_buy'
+    });
+  } else {
+    await sb.from('list_items').update({ quantity: next }).eq('id', item.id);
   }
   reload();
 }
