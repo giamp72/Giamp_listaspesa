@@ -6,24 +6,28 @@
 <title>Lista della Spesa</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--bg:#f4f6fb;--card:#fff;--pri:#4f46e5;--ok:#16a34a;--tx:#1f2937;--mu:#6b7280;--bd:#e5e7eb}
+:root{--bg:#f4f6fb;--card:#fff;--pri:#4f46e5;--ok:#16a34a;--tx:#1f2937;--mu:#6b7280;--bd:#e5e7eb;--soft:#eef2ff}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:76px;font-size:14px}
-header{background:var(--pri);color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:5}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px}
+body{padding-bottom:76px}
+header{background:linear-gradient(135deg,#4338ca,#6366f1);color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:10;box-shadow:0 3px 12px rgba(79,70,229,.25)}
 header h1{font-size:15px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 main{max-width:760px;margin:0 auto;padding:10px}
-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:6px 0;z-index:5}
-nav button{background:none;border:0;font-size:11px;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;padding:4px 0;min-width:0}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:6px 0;z-index:20}
+nav button{background:none;border:0;font-size:11px;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 0;min-width:0}
 nav button span{font-size:18px;line-height:1}
 nav button.on{color:var(--pri);font-weight:700}
 .card{background:var(--card);border-radius:12px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:8px}
 .card.col{flex-direction:column;align-items:stretch}
 .grow{flex:1;min-width:0}
-h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:14px 4px 6px}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin:16px 4px 6px}
 input,select{padding:10px;border:1px solid var(--bd);border-radius:10px;font-size:14px;width:100%}
 button.b{background:var(--pri);color:#fff;border:0;border-radius:10px;padding:9px 12px;font-size:14px;cursor:pointer;white-space:nowrap}
-button.b.ok{background:var(--ok)} button.b.gh{background:#eef2ff;color:var(--pri)} button.b.rd{background:#fee2e2;color:#b91c1c}
-img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#eee;flex:none}
+button.b:active{transform:scale(.98)}
+button.b.ok{background:var(--ok)}
+button.b.gh{background:#eef2ff;color:var(--pri)}
+button.b.rd{background:#fee2e2;color:#b91c1c}
+img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#eee;flex:none;border:1px solid #eef2ff}
 .chk{width:24px;height:24px;border-radius:8px;border:2px solid var(--bd);display:grid;place-items:center;flex:none;font-size:15px;color:#fff}
 .done .chk{background:var(--ok);border-color:var(--ok)}
 .sel .chk{background:var(--pri);border-color:var(--pri)}
@@ -34,9 +38,19 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#ee
 #login{max-width:360px;margin:56px auto;padding:16px}
 .qtybox{display:flex;align-items:center;gap:6px;border:1px solid var(--bd);border-radius:10px;padding:3px 5px;background:#f8fafc;flex:none}
 .qtybox button{width:28px;height:28px;border-radius:8px;border:0;background:#eef2ff;color:var(--pri);font-size:18px;font-weight:700;cursor:pointer;line-height:1}
-.qtybox span{min-width:20px;text-align:center;font-weight:700;font-size:13px}
-.small-actions{display:flex;gap:6px;flex-wrap:wrap}
+.qtybox span{min-width:22px;text-align:center;font-weight:700;font-size:13px}
+.small-actions{display:flex;gap:6px;align-items:center}
+.row{display:flex;gap:8px;align-items:center}
 .camera-label{display:inline-flex;align-items:center;justify-content:center}
+.item-card{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
+.product-name{font-weight:600;line-height:1.3;word-break:break-word}
+.product-meta{font-size:12px;color:var(--mu);margin-top:2px}
+.wide-btn{width:100%}
+.list-avatar{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;background:var(--soft);font-size:18px}
+@media (max-width:420px){
+  .card{padding:8px 10px}
+  .qtybox{padding:2px 4px}
+}
 </style>
 </head>
 <body>
@@ -106,7 +120,7 @@ async function reload() {
 function go(p) { S.page = p; render(); }
 const curList = () => S.lists.find(l => l.id === S.listId);
 const prod = id => S.prods.find(p => p.id === id);
-const thumb = p => p?.image_url ? `<img class="th" src="${esc(p.image_url)}">` : `<div class="th" style="display:grid;place-items:center">🛒</div>`;
+const thumb = p => p?.image_url ? `<img class="th" src="${esc(p.image_url)}">` : `<div class="list-avatar">🛒</div>`;
 
 function render() {
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.p === S.page));
@@ -153,15 +167,14 @@ function vProds() {
     <div class="card col">
       <input id="pd" placeholder="Descrizione prodotto">
       <select id="pc">${S.cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
-      <div class="row" style="align-items:center">
-        <label class="b gh camera-label" for="pi">📷 Scatta foto</label>
+      <div class="row">
+        <label class="b gh camera-label" for="pi">📷 Foto</label>
         <input id="pi" type="file" accept="image/*" capture="environment" style="display:none">
       </div>
-      <button class="b" onclick="addProd()">Aggiungi prodotto</button>
+      <button class="b wide-btn" onclick="addProd()">Aggiungi prodotto</button>
     </div>
     ${S.cats.map(c => { const ps = S.prods.filter(p => p.category_id === c.id); if (!ps.length) return '';
-      return `<h2>${esc(c.name)}</h2>` + ps.map(p => `<div class="card">${thumb(p)}<div class="grow">${esc(p.description)}</div>
-        <button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div>`).join(''); }).join('')}`;
+      return `<h2>${esc(c.name)}</h2>` + ps.map(p => `<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="small-actions"><button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div></div></div>`).join(''); }).join('')}`;
 }
 async function addProd() {
   const d = $('pd').value.trim(), c = $('pc').value; if (!d || !c) return alert('Inserisci descrizione e categoria');
@@ -188,7 +201,7 @@ function vPick() {
       return `<div class="card ${selected ? 'sel' : ''}" onclick="toggleItem('${p.id}')">
         <div class="chk">${selected ? '✓' : ''}</div>
         ${thumb(p)}
-        <div class="grow t">${esc(p.description)}</div>
+        <div class="grow"><div class="product-name">${esc(p.description)}</div></div>
         <div class="qtybox" onclick="event.stopPropagation();">
           <button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', -1)">−</button>
           <span>${qty}</span>
@@ -225,10 +238,10 @@ function vShop() {
   $('view').innerHTML = `
     <div class="card col"><b>Mancano ${tot - done} prodotti su ${tot}</b>
       <div class="bar"><i style="width:${tot ? done / tot * 100 : 0}%"></i></div>
-      <button class="b ok" onclick="closeCart()">✅ Chiudi carrello</button></div>
+      <button class="b ok wide-btn" onclick="closeCart()">✅ Chiudi carrello</button></div>
     ${S.cats.map(c => { const its = S.items.filter(i => prod(i.product_id)?.category_id === c.id); if (!its.length) return '';
       return `<h2>${esc(c.name)}</h2>` + its.map(i => { const p = prod(i.product_id), d = i.status === 'purchased';
-        return `<div class="card ${d ? 'done' : ''}" onclick="buy('${i.id}',${!d})"><div class="chk">${d ? '✓' : ''}</div>${thumb(p)}<div class="grow t"><div>${esc(p.description)}</div><div class="mu">Quantità: ${i.quantity || 1}</div></div></div>`; }).join(''); }).join('')
+        return `<div class="card ${d ? 'done' : ''}" onclick="buy('${i.id}',${!d})"><div class="chk">${d ? '✓' : ''}</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity || 1}</div></div></div>`; }).join(''); }).join('')
     || '<div class="card">Il carrello è vuoto. Scegli i prodotti dalla pagina Lista.</div>'}`;
 }
 async function buy(id, v) { await sb.from('list_items').update({ status: v ? 'purchased' : 'to_buy', updated_at: new Date().toISOString() }).eq('id', id); reload(); }
