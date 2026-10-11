@@ -24,6 +24,11 @@ nav button.on span{filter:none}
 .card.col{flex-direction:column;align-items:stretch}
 .grow{flex:1;min-width:0}
 h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin:16px 4px 6px;font-weight:600}
+h2.cath{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:9px 10px;margin:12px 0 6px;color:var(--tx)}
+h2.cath .chev{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:var(--card2);border:1px solid var(--bd);font-size:12px;color:var(--tx);flex:none}
+h2.cath .cnt{margin-left:auto;color:var(--mu);font-weight:500;letter-spacing:0}
+.expbar{display:flex;gap:8px;margin:2px 0 4px}
+.expbar .b{flex:1;font-size:13px;padding:8px 10px}
 input,select{padding:10px;background:#0d0d0d;color:var(--tx);border:1px solid var(--bd);border-radius:10px;font-size:14px;width:100%;outline:none}
 input::placeholder{color:#767676}
 input:focus,select:focus{border-color:#6b6b6b}
@@ -58,18 +63,12 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .modal.open{display:flex}
 .modal img{max-width:100%;max-height:88vh;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.6);background:#111}
 .modal .close{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:999px;border:1px solid var(--bd);background:#1c1c1c;color:#f1f1f1;font-size:22px;cursor:pointer}
-.menu-wrap{position:relative}
-.menu{position:absolute;right:0;top:44px;background:#101010;border:1px solid var(--bd);border-radius:12px;min-width:220px;box-shadow:0 12px 30px rgba(0,0,0,.45);overflow:hidden;display:none;z-index:60}
-.menu.open{display:block}
-.menu button{width:100%;background:none;border:0;color:var(--tx);padding:12px 14px;text-align:left;font-size:14px;cursor:pointer;border-bottom:1px solid var(--bd);opacity:1 !important;pointer-events:auto !important}
-.menu button:last-child{border-bottom:0}
-.menu button:hover{background:#1b1b1b}
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:55}
 .backdrop.open{display:block}
 .modal-panel{background:#101010;border:1px solid var(--bd);border-radius:14px;max-width:560px;width:100%;padding:14px}
 .modal-panel h3{margin:0 0 8px;font-size:16px}
 .modal-panel p{margin:8px 0;color:var(--mu);line-height:1.45}
-.modal-panel textarea{min-height:280px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;font-size:12px;line-height:1.5;resize:vertical}
+.modal-panel textarea{min-height:280px;width:100%;background:#0d0d0d;color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;font-size:12px;line-height:1.5;resize:vertical}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 .list-actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 0}
 .list-actions .b{flex:1 1 140px}
@@ -112,11 +111,30 @@ const SUPABASE_URL='https://tdagxuyvckiageppiwbh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 let S={cats:[],prods:[],lists:[],items:[],page:'lists',listId:localStorage.getItem('listId'),listName:''};
+let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch{COL={}}
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---- categorie comprimibili ---- */
+const colKey=(page,id)=>page+':'+(S.listId||'')+':'+id;
+const isCol=k=>!!COL[k];
+function saveCol(){localStorage.setItem('collapsedCats',JSON.stringify(COL));}
+function toggleCat(k){COL[k]=!COL[k];saveCol();render();}
+function setAll(page,collapse){
+  const ids=S.cats.map(c=>c.id);
+  if(page==='shop')ids.push('bought');
+  ids.forEach(id=>{COL[colKey(page,id)]=collapse;});
+  saveCol();render();
+}
+function catHead(page,id,name,count){
+  const k=colKey(page,id);
+  return `<h2 class="cath" onclick="toggleCat('${k}')"><span class="chev">${isCol(k)?'▸':'▾'}</span><span>${esc(name)}</span><span class="cnt">${count}</span></h2>`;
+}
+const expBar=page=>`<div class="expbar"><button class="b gh" onclick="setAll('${page}',false)">▾ Espandi tutto</button><button class="b gh" onclick="setAll('${page}',true)">▸ Comprimi tutto</button></div>`;
+
 async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
 sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;if(session)reload();});
-async function reload(){const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);S.cats=c.data||[];S.prods=p.data||[];S.lists=l.data||[];if(!S.lists.find(x=>x.id===S.listId))S.listId=S.lists[0]?.id||null;S.listName=curList()?.name||'';if(S.listId){const i=await sb.from('list_items').select('*').eq('list_id',S.listId);S.items=i.data||[]}else S.items=[];render();}
+async function reload(){const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);S.lists=l.data||[];if(!S.lists.find(x=>x.id===S.listId))S.listId=S.lists[0]?.id||null;S.cats=(c.data||[]).filter(x=>x.list_id===S.listId);S.prods=(p.data||[]).filter(x=>x.list_id===S.listId);S.listName=curList()?.name||'';if(S.listId){const i=await sb.from('list_items').select('*').eq('list_id',S.listId);S.items=i.data||[]}else S.items=[];render();}
 function go(p){S.page=p;render();}
 const curList=()=>S.lists.find(l=>l.id===S.listId);
 const prod=id=>S.prods.find(p=>p.id===id);
@@ -131,8 +149,8 @@ function openImportModal(){if(!S.listId) return alert('Seleziona una lista prima
 function downloadExport(){const list=curList();const data=JSON.stringify(exportListJson(),null,2);const blob=new Blob([data],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${sanitizeFileName(list?.name||'lista')}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
 function sanitizeFileName(name){return String(name).trim().replace(/[\\/:*?"<>|]+/g,'_')||'lista';}
 async function confirmImport(){const file=$('importFile').files[0];if(!file) return alert('Seleziona un file JSON da importare.');if(!confirm('ATTENZIONE: questa operazione cancellerà tutte le categorie e i prodotti attuali della lista selezionata. Procedere?')) return;let parsed;try{parsed=JSON.parse(await file.text())}catch{return alert('Il file non è un JSON valido.')}await importJsonToCurrentList(parsed);hideDialog();reload();}
-async function importJsonToCurrentList(data){if(!S.listId) throw new Error('Nessuna lista selezionata.');if(!data||!Array.isArray(data.categorie)||typeof data.prodotti!=='object'){alert('Formato JSON non valido.');return;}const listId=S.listId;const existingProds=await sb.from('products').select('id').eq('list_id',listId);const existingCats=await sb.from('categories').select('id').eq('list_id',listId);const oldProdIds=(existingProds.data||[]).map(x=>x.id);const oldCatIds=(existingCats.data||[]).map(x=>x.id);if(oldProdIds.length) await sb.from('list_items').delete().eq('list_id',listId).in('product_id',oldProdIds);if(oldCatIds.length) await sb.from('products').delete().eq('list_id',listId);await sb.from('categories').delete().eq('list_id',listId);const categoryMap=new Map();for(let i=0;i<data.categorie.length;i++){const name=data.categorie[i];const ins=await sb.from('categories').insert({list_id:listId,name,position:i}).select().single();if(ins.data) categoryMap.set(name,ins.data.id)}for(const catName of data.categorie){const catId=categoryMap.get(catName);const items=Array.isArray(data.prodotti[catName])?data.prodotti[catName]:[];for(const item of items){const obj=typeof item==='string'?{descrizione:item,immagine:null}:item;if(!obj.descrizione) continue;await sb.from('products').insert({list_id:listId,description:obj.descrizione,category_id:catId,image_url:obj.immagine||null})}}}
-function vLists(){const hasList = !!S.listId;$('view').innerHTML=`<div class="card"><input id="nl" placeholder="Nuova lista (es. Esselunga)"><button class="b" onclick="addList()">Crea</button></div>${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b rd" onclick="delList('${l.id}')">🗑</button></div>`).join('')}<div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">Esporta JSON</button><button class="b gh" onclick="openImportModal()">Importa JSON</button>`:'<button class="b gh" onclick="alert(\'Seleziona una lista prima di esportare/importare.\')">Esporta/Importa</button>'}</div>`;}
+async function importJsonToCurrentList(data){if(!S.listId) throw new Error('Nessuna lista selezionata.');if(!data||!Array.isArray(data.categorie)||typeof data.prodotti!=='object'){alert('Formato JSON non valido.');return;}const listId=S.listId;await sb.from('list_items').delete().eq('list_id',listId);await sb.from('products').delete().eq('list_id',listId);await sb.from('categories').delete().eq('list_id',listId);const categoryMap=new Map();for(let i=0;i<data.categorie.length;i++){const name=data.categorie[i];const ins=await sb.from('categories').insert({list_id:listId,name,position:i}).select().single();if(ins.data) categoryMap.set(name,ins.data.id)}for(const catName of data.categorie){const catId=categoryMap.get(catName);const items=Array.isArray(data.prodotti[catName])?data.prodotti[catName]:[];for(const item of items){const obj=typeof item==='string'?{descrizione:item,immagine:null}:item;if(!obj.descrizione) continue;await sb.from('products').insert({list_id:listId,description:obj.descrizione,category_id:catId,image_url:obj.immagine||null})}}}
+function vLists(){const hasList=!!S.listId;$('view').innerHTML=`<div class="card"><input id="nl" placeholder="Nuova lista (es. Esselunga)"><button class="b" onclick="addList()">Crea</button></div>${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b rd" onclick="delList('${l.id}')">🗑</button></div>`).join('')}<div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">Esporta JSON</button><button class="b gh" onclick="openImportModal()">Importa JSON</button>`:'<button class="b gh" onclick="alert(\'Seleziona una lista prima di esportare/importare.\')">Esporta/Importa</button>'}</div>`;}
 async function addList(){const n=$('nl').value.trim();if(!n) return;const r=await sb.from('shopping_lists').insert({name:n}).select().single();if(r.data){S.listId=r.data.id;localStorage.setItem('listId',S.listId)}reload();}
 function selList(id){S.listId=id;localStorage.setItem('listId',id);reload();}
 async function delList(id){if(confirm('Eliminare la lista?')){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
@@ -141,14 +159,63 @@ async function addCat(){const n=$('nc').value.trim();if(!n) return;const pos=S.c
 async function moveCat(i,d){const a=S.cats[i],b=S.cats[i+d];if(!b) return;const arr=[...S.cats];[arr[i],arr[i+d]]=[arr[i+d],arr[i]];await Promise.all(arr.map((c,k)=>sb.from('categories').update({position:k}).eq('id',c.id)));reload();}
 async function renCat(id){const n=prompt('Nuovo nome:');if(n){await sb.from('categories').update({name:n}).eq('id',id);reload();}}
 async function delCat(id){if(!confirm('Eliminare la categoria?')) return;const r=await sb.from('categories').delete().eq('id',id);if(r.error) alert('Categoria in uso da dei prodotti.');reload();}
-function vProds(){$('view').innerHTML=`<div class="card col"><input id="pd" placeholder="Descrizione prodotto"><select id="pc">${S.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">📷 Foto</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">Aggiungi prodotto</button></div>${S.cats.map(c=>{const ps=S.prods.filter(p=>p.category_id===c.id);if(!ps.length) return '';return `<h2>${esc(c.name)}</h2>`+ps.map(p=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="small-actions"><button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div></div></div>`).join('');}).join('')}`;}
+
+function vProds(){
+  const keepD=$('pd')?.value||'';
+  $('view').innerHTML=`<div class="card col"><input id="pd" placeholder="Descrizione prodotto"><select id="pc">${S.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">📷 Foto</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">Aggiungi prodotto</button></div>${expBar('prods')}${S.cats.map(c=>{const ps=S.prods.filter(p=>p.category_id===c.id);if(!ps.length) return '';return catHead('prods',c.id,c.name,ps.length)+(isCol(colKey('prods',c.id))?'':ps.map(p=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="small-actions"><button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div></div></div>`).join(''));}).join('')}`;
+  if(keepD) $('pd').value=keepD;
+}
 async function addProd(){const d=$('pd').value.trim(),c=$('pc').value;if(!d||!c) return alert('Inserisci descrizione e categoria');let url=null;const f=$('pi').files[0];if(f){const path=crypto.randomUUID()+'-'+f.name.replace(/[^\w.]/g,'_');const u=await sb.storage.from('product-images').upload(path,f);if(u.error) return alert(u.error.message);url=sb.storage.from('product-images').getPublicUrl(path).data.publicUrl}const r=await sb.from('products').insert({description:d,category_id:c,image_url:url,list_id:S.listId});if(r.error) alert(r.error.message);reload();}
 async function editProd(id){const p=prod(id);const n=prompt('Descrizione:',p.description);if(n){await sb.from('products').update({description:n}).eq('id',id);reload();}}
 async function delProd(id){if(confirm('Eliminare il prodotto?')){await sb.from('products').delete().eq('id',id);reload();}}
-function vPick(){if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';$('view').innerHTML=S.cats.map(c=>{const ps=S.prods.filter(p=>p.category_id===c.id);if(!ps.length) return '';return `<h2>${esc(c.name)}</h2>`+ps.map(p=>{const item=S.items.find(i=>i.product_id===p.id);const qty=item?Number(item.quantity||1):1;const selected=!!item;return `<div class="card ${selected?'sel':''}" onclick="toggleItem('${p.id}')"><div class="chk">${selected?'✓':''}</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="qtybox" onclick="event.stopPropagation();"><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', -1)">−</button><span>${qty}</span><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', 1)">+</button></div></div>`;}).join('');}).join('')||'<div class="card">Nessun prodotto: aggiungili dalla pagina Prodotti.</div>';}
+
+function vPick(){
+  if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';
+  const body=S.cats.map(c=>{
+    const ps=S.prods.filter(p=>p.category_id===c.id);
+    if(!ps.length) return '';
+    const nSel=ps.filter(p=>S.items.find(i=>i.product_id===p.id)).length;
+    return catHead('pick',c.id,c.name,nSel?`${nSel}/${ps.length}`:ps.length)+(isCol(colKey('pick',c.id))?'':ps.map(p=>{
+      const item=S.items.find(i=>i.product_id===p.id);
+      const qty=item?Number(item.quantity||1):1;
+      const selected=!!item;
+      return `<div class="card ${selected?'sel':''}" onclick="toggleItem('${p.id}')"><div class="chk">${selected?'✓':''}</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="qtybox" onclick="event.stopPropagation();"><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', -1)">−</button><span>${qty}</span><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', 1)">+</button></div></div>`;
+    }).join(''));
+  }).join('');
+  $('view').innerHTML=body?expBar('pick')+body:'<div class="card">Nessun prodotto: aggiungili dalla pagina Prodotti.</div>';
+}
 async function toggleItem(pid){const ex=S.items.find(i=>i.product_id===pid);if(ex){await sb.from('list_items').delete().eq('id',ex.id);}else{await sb.from('list_items').insert({list_id:S.listId,product_id:pid,quantity:1,status:'to_buy'});}reload();}
 async function changeQty(pid,delta){const item=S.items.find(i=>i.product_id===pid);const current=item?Number(item.quantity||1):1;const next=Math.max(1,current+delta);if(!item){await sb.from('list_items').insert({list_id:S.listId,product_id:pid,quantity:next,status:'to_buy'});}else{await sb.from('list_items').update({quantity:next}).eq('id',item.id);}reload();}
-function vShop(){if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';const items=S.items||[];const toBuy=items.filter(i=>i.status!=='purchased');const bought=items.filter(i=>i.status==='purchased');const tot=toBuy.length+bought.length;const done=bought.length;let html=`<div class="card col"><b>Mancano ${toBuy.length} prodotti su ${tot}</b><div class="bar"><i style="width:${tot?(done/tot)*100:0}%"></i></div><button class="b ok wide-btn" onclick="closeCart()">✅ Chiudi carrello</button></div>`;if(toBuy.length){html+=S.cats.map(c=>{const its=toBuy.filter(i=>prod(i.product_id)?.category_id===c.id);if(!its.length) return '';return `<h2>${esc(c.name)}</h2>`+its.map(i=>{const p=prod(i.product_id);return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join('');}).join('');}else{html+='<div class="card">Nessun prodotto da acquistare.</div>';}if(bought.length){html+='<h2>Acquistati</h2>';html+=S.cats.map(c=>{const its=bought.filter(i=>prod(i.product_id)?.category_id===c.id);if(!its.length) return '';return its.map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join('');}).join('');}$('view').innerHTML=html;}
+
+function vShop(){
+  if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';
+  const items=S.items||[];
+  const toBuy=items.filter(i=>i.status!=='purchased');
+  const bought=items.filter(i=>i.status==='purchased');
+  const tot=toBuy.length+bought.length;
+  const done=bought.length;
+  let html=`<div class="card col"><b>Mancano ${toBuy.length} prodotti su ${tot}</b><div class="bar"><i style="width:${tot?(done/tot)*100:0}%"></i></div><button class="b ok wide-btn" onclick="closeCart()">✅ Chiudi carrello</button></div>`;
+  html+=expBar('shop');
+  if(toBuy.length){
+    html+=S.cats.map(c=>{
+      const its=toBuy.filter(i=>prod(i.product_id)?.category_id===c.id);
+      if(!its.length) return '';
+      return catHead('shop',c.id,c.name,its.length)+(isCol(colKey('shop',c.id))?'':its.map(i=>{const p=prod(i.product_id);return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join(''));
+    }).join('');
+  } else {
+    html+='<div class="card">Nessun prodotto da acquistare.</div>';
+  }
+  if(bought.length){
+    html+=catHead('shop','bought','Acquistati',bought.length);
+    if(!isCol(colKey('shop','bought'))){
+      html+=S.cats.map(c=>{
+        const its=bought.filter(i=>prod(i.product_id)?.category_id===c.id);
+        return its.map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join('');
+      }).join('');
+    }
+  }
+  $('view').innerHTML=html;
+}
 async function buy(id,v){await sb.from('list_items').update({status:v?'purchased':'to_buy',updated_at:new Date().toISOString()}).eq('id',id);reload();}
 async function closeCart(){if(!confirm('Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.')) return;await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');reload();}
 function openPhotoModal(url){$('photoModalImg').src=url;$('photoModal').classList.add('open');}
