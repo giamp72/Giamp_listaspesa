@@ -42,6 +42,7 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .chk{width:24px;height:24px;border-radius:8px;border:2px solid #5a5a5a;display:grid;place-items:center;flex:none;font-size:15px;color:#fff;font-weight:700}
 .done .chk{background:var(--ok);border-color:var(--ok);color:#06140c}
 .sel .chk{background:var(--pri);border-color:var(--pri);color:var(--pri-tx)}
+.card.sel{background:#171717;border-color:#6b6b6b;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
 .done{background:#0d0d0d}
 .done .product-name{text-decoration:line-through;color:var(--mu)}
 .bar{height:8px;background:#262626;border-radius:99px;overflow:hidden;margin:8px 0}
@@ -193,11 +194,13 @@ function selList(id){S.listId=id;localStorage.setItem('listId',id);reload();}
 async function delList(id){if(confirm('Eliminare la lista?')){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
 
 /* ---- categorie ---- */
-function vCats(){const cs=orderedCats();$('view').innerHTML=`<div class="card"><input id="nc" placeholder="Nuova categoria"><button class="b" onclick="addCat()">Aggiungi</button></div><div class="mu" style="margin:0 4px 8px">Ordine di visualizzazione nella spesa.</div>${cs.map((c,i)=>`<div class="card"><div class="grow"><b>${esc(c.name)}</b></div><button class="b gh" ${i===0?'disabled':''} onclick="moveCat(${i},-1)">▲</button><button class="b gh" ${i===cs.length-1?'disabled':''} onclick="moveCat(${i},1)">▼</button><button class="b gh" onclick="renCat('${c.id}')">✏️</button><button class="b rd" onclick="delCat('${c.id}')">🗑</button></div>`).join('')}`;}
-async function addCat(){const n=$('nc').value.trim();if(!n) return;const pos=S.cats.length?Math.max(...S.cats.map(c=>Number(c.position)))+1:0;const r=await sb.from('categories').insert({name:n,position:pos,list_id:S.listId});if(r.error) alert(r.error.message);reload();}
-async function moveCat(i,d){const arr=orderedCats();if(!arr[i+d]) return;[arr[i],arr[i+d]]=[arr[i+d],arr[i]];await Promise.all(arr.map((c,k)=>sb.from('categories').update({position:k}).eq('id',c.id)));reload();}
+let selectedCatId=null;
+function vCats(){const cs=orderedCats();const selected=selectedCatId && cs.some(c=>c.id===selectedCatId)?selectedCatId:null;if(!selected && cs.length) selectedCatId=cs[0].id;const activeSelected=selected || selectedCatId;$('view').innerHTML=`<div class="card"><input id="nc" placeholder="Nuova categoria"><button class="b" onclick="addCat()">Aggiungi</button></div><div class="mu" style="margin:0 4px 8px">Ordine di visualizzazione nella spesa.</div>${cs.map((c,i)=>{const isSelected=c.id===activeSelected;const row=`<div class="card ${isSelected?'sel':''}" data-cat-id="${c.id}" onclick="selectCat('${c.id}')"><div class="grow"><b>${esc(c.name)}</b></div>${isSelected?`<button class="b gh" ${i===0?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},-1)">▲</button><button class="b gh" ${i===cs.length-1?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},1)">▼</button><button class="b gh" onclick="event.stopPropagation(); renCat('${c.id}')">✏️</button><button class="b rd" onclick="event.stopPropagation(); delCat('${c.id}')">🗑</button>`:''}</div>`;return row;}).join('')}`;}
+function selectCat(id){selectedCatId=id;render();}
+async function addCat(){const n=$('nc').value.trim();if(!n) return;const pos=S.cats.length?Math.max(...S.cats.map(c=>Number(c.position)))+1:0;const r=await sb.from('categories').insert({name:n,position:pos,list_id:S.listId}).select().single();if(r.error) alert(r.error.message);if(r.data) selectedCatId=r.data.id;reload();}
+async function moveCat(i,d){const arr=orderedCats();if(!arr[i+d]) return;[arr[i],arr[i+d]]=[arr[i+d],arr[i]];await Promise.all(arr.map((c,k)=>sb.from('categories').update({position:k}).eq('id',c.id)));const movedId=arr[i+d]?.id || arr[i]?.id;selectedCatId=movedId;reload();}
 async function renCat(id){const n=prompt('Nuovo nome:');if(n){await sb.from('categories').update({name:n}).eq('id',id);reload();}}
-async function delCat(id){if(!confirm('Eliminare la categoria?')) return;const r=await sb.from('categories').delete().eq('id',id);if(r.error) alert('Categoria in uso da dei prodotti.');reload();}
+async function delCat(id){if(!confirm('Eliminare la categoria?')) return;const r=await sb.from('categories').delete().eq('id',id);if(r.error) alert('Categoria in uso da dei prodotti.');if(selectedCatId===id) selectedCatId=null;reload();}
 
 /* ---- prodotti ---- */
 const filterBox=id=>`<div class="card filter-box"><input id="${id}" placeholder="Cerca prodotto..." value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>`;
