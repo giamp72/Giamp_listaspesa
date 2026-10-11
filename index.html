@@ -8,19 +8,7 @@
 <title>Lista della Spesa</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{
-  color-scheme:dark;
-  --bg:#000000;
-  --card:#141414;
-  --card2:#1c1c1c;
-  --bd:#2b2b2b;
-  --tx:#f1f1f1;
-  --mu:#a1a1a1;
-  --pri:#e4e4e4;
-  --pri-tx:#0a0a0a;
-  --ok:#7fc99a;
-  --danger:#e08a8a;
-}
+:root{color-scheme:dark;--bg:#000;--card:#141414;--card2:#1c1c1c;--bd:#2b2b2b;--tx:#f1f1f1;--mu:#a1a1a1;--pri:#e4e4e4;--pri-tx:#0a0a0a;--ok:#7fc99a;--danger:#e08a8a}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px}
 body{padding-bottom:76px}
@@ -35,7 +23,6 @@ nav button.on span{filter:none}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
 .card.col{flex-direction:column;align-items:stretch}
 .grow{flex:1;min-width:0}
-h1{color:var(--tx)}
 h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin:16px 4px 6px;font-weight:600}
 input,select{padding:10px;background:#0d0d0d;color:var(--tx);border:1px solid var(--bd);border-radius:10px;font-size:14px;width:100%;outline:none}
 input::placeholder{color:#767676}
@@ -74,7 +61,7 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .menu-wrap{position:relative}
 .menu{position:absolute;right:0;top:44px;background:#101010;border:1px solid var(--bd);border-radius:12px;min-width:220px;box-shadow:0 12px 30px rgba(0,0,0,.45);overflow:hidden;display:none;z-index:60}
 .menu.open{display:block}
-.menu button{width:100%;background:none;border:0;color:var(--tx);padding:12px 14px;text-align:left;font-size:14px;cursor:pointer;border-bottom:1px solid var(--bd)}
+.menu button{width:100%;background:none;border:0;color:var(--tx);padding:12px 14px;text-align:left;font-size:14px;cursor:pointer;border-bottom:1px solid var(--bd);opacity:1 !important;pointer-events:auto !important}
 .menu button:last-child{border-bottom:0}
 .menu button:hover{background:#1b1b1b}
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:55}
@@ -84,10 +71,9 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .modal-panel p{margin:8px 0;color:var(--mu);line-height:1.45}
 .modal-panel textarea{min-height:280px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;font-size:12px;line-height:1.5;resize:vertical}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
-@media (max-width:420px){
-  .card{padding:8px 10px}
-  .qtybox{padding:2px 4px}
-}
+.list-actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 0}
+.list-actions .b{flex:1 1 140px}
+@media (max-width:420px){.card{padding:8px 10px}.qtybox{padding:2px 4px}.list-actions{flex-direction:column}}
 </style>
 </head>
 <body>
@@ -101,19 +87,11 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
     <div id="lerr" class="mu"></div>
   </div>
 </div>
-
 <div id="app" hidden>
   <header>
     <h1 id="title">🛒 Spesa</h1>
     <div class="small-actions">
       <button class="b gh" onclick="reload()" title="Aggiorna">🔄</button>
-      <div class="menu-wrap">
-        <button class="b gh" onclick="toggleMenu()" title="Menu">⚙️</button>
-        <div id="gearMenu" class="menu">
-          <button onclick="openExportModal()">Esporta JSON</button>
-          <button onclick="openImportModal()">Importa JSON</button>
-        </div>
-      </div>
       <button class="b gh" onclick="sb.auth.signOut()">Esci</button>
     </div>
   </header>
@@ -126,344 +104,56 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
     <button data-p="shop" onclick="go('shop')"><span>🛍️</span>Spesa</button>
   </nav>
 </div>
-
-<div id="photoModal" class="modal" onclick="closePhotoModal(event)">
-  <button class="close" aria-label="Chiudi" onclick="hidePhotoModal()">×</button>
-  <img id="photoModalImg" alt="Foto prodotto ingrandita">
-</div>
-
+<div id="photoModal" class="modal" onclick="closePhotoModal(event)"><button class="close" aria-label="Chiudi" onclick="hidePhotoModal()">×</button><img id="photoModalImg" alt="Foto prodotto ingrandita"></div>
 <div id="overlay" class="backdrop" onclick="closeDialog(event)"></div>
 <div id="dialogHost" style="position:fixed;inset:0;z-index:56;display:none;align-items:center;justify-content:center;padding:16px;"></div>
-
 <script>
-const SUPABASE_URL = 'https://tdagxuyvckiageppiwbh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-let S = { cats: [], prods: [], lists: [], items: [], page: 'lists', listId: localStorage.getItem('listId'), listName: '' };
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-async function auth(signup) {
-  const r = signup
-    ? await sb.auth.signUp({ email: $('em').value, password: $('pw').value })
-    : await sb.auth.signInWithPassword({ email: $('em').value, password: $('pw').value });
-  $('lerr').textContent = r.error ? r.error.message : (signup ? 'Controlla la mail per confermare (se richiesto).' : '');
-}
-sb.auth.onAuthStateChange((_e, session) => {
-  $('login').hidden = !!session; $('app').hidden = !session;
-  if (session) reload();
-});
-
-async function reload() {
-  const [c, p, l] = await Promise.all([
-    sb.from('categories').select('*').order('position'),
-    sb.from('products').select('*').order('description'),
-    sb.from('shopping_lists').select('*').order('created_at')
-  ]);
-  S.cats = c.data || []; S.prods = p.data || []; S.lists = l.data || [];
-  if (!S.lists.find(x => x.id === S.listId)) S.listId = S.lists[0]?.id || null;
-  S.listName = curList()?.name || '';
-  if (S.listId) {
-    const i = await sb.from('list_items').select('*').eq('list_id', S.listId);
-    S.items = i.data || [];
-  } else S.items = [];
-  render();
-}
-function go(p) { S.page = p; render(); }
-const curList = () => S.lists.find(l => l.id === S.listId);
-const prod = id => S.prods.find(p => p.id === id);
-const thumb = p => p?.image_url ? `<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" onclick="event.stopPropagation(); openPhotoModal('${esc(p.image_url)}')">` : `<div class="list-avatar">🛒</div>`;
-
-function render() {
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.p === S.page));
-  $('title').textContent = '🛒 ' + (curList()?.name || 'Spesa');
-  ({ lists: vLists, cats: vCats, prods: vProds, pick: vPick, shop: vShop })[S.page]();
-}
-
-function toggleMenu(){
-  $('gearMenu').classList.toggle('open');
-  $('overlay').classList.toggle('open');
-  $('dialogHost').style.display = 'none';
-}
-function closeMenu(){ $('gearMenu').classList.remove('open'); if (!$('dialogHost').innerHTML) $('overlay').classList.remove('open'); }
-function closeDialog(event){ if (event.target.id === 'overlay') { $('dialogHost').style.display='none'; $('dialogHost').innerHTML=''; $('overlay').classList.remove('open'); closeMenu(); } }
-function showDialog(html){ $('dialogHost').innerHTML = html; $('dialogHost').style.display='flex'; $('overlay').classList.add('open'); $('gearMenu').classList.remove('open'); }
-function hideDialog(){ $('dialogHost').style.display='none'; $('dialogHost').innerHTML=''; $('overlay').classList.remove('open'); }
-
-function openExportModal(){
-  if (!S.listId) return alert('Seleziona una lista prima di esportare.');
-  const json = exportListJson();
-  showDialog(`
-    <div class="modal-panel">
-      <h3>Esporta JSON</h3>
-      <p>Verrà scaricato un file con il nome della lista attiva. Il file contiene solo <b>categorie</b> e <b>prodotti</b>, incluse le immagini quando presenti.</p>
-      <textarea readonly>${esc(JSON.stringify(json, null, 2))}</textarea>
-      <div class="modal-actions">
-        <button class="b gh" onclick="hideDialog()">Chiudi</button>
-        <button class="b" onclick="downloadExport()">Scarica JSON</button>
-      </div>
-    </div>
-  `);
-}
-function openImportModal(){
-  if (!S.listId) return alert('Seleziona una lista prima di importare.');
-  showDialog(`
-    <div class="modal-panel">
-      <h3>Importa JSON</h3>
-      <p><b>ATTENZIONE:</b> l'importazione <b>SOVRASCRIVE TUTTI</b> i dati di <b>categorie</b> e <b>prodotti</b> della lista attiva. I dati attuali verranno persi.</p>
-      <input id="importFile" type="file" accept="application/json,.json">
-      <div class="modal-actions">
-        <button class="b gh" onclick="hideDialog()">Annulla</button>
-        <button class="b rd" onclick="confirmImport()">Importa e sovrascrivi</button>
-      </div>
-    </div>
-  `);
-}
-function exportListJson(){
-  const list = curList();
-  const cats = S.cats.slice().sort((a,b)=>a.position-b.position);
-  const productsByCat = {};
-  cats.forEach(cat => {
-    productsByCat[cat.name] = S.prods.filter(p => p.category_id === cat.id).map(p => ({
-      descrizione: p.description,
-      immagine: p.image_url || null
-    }));
-  });
-  return {
-    lista: list?.name || 'lista',
-    categorie: cats.map(c => c.name),
-    prodotti: productsByCat
-  };
-}
-function downloadExport(){
-  const list = curList();
-  const data = JSON.stringify(exportListJson(), null, 2);
-  const blob = new Blob([data], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${sanitizeFileName(list?.name || 'lista')}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-function sanitizeFileName(name){ return String(name).trim().replace(/[\\/:*?"<>|]+/g,'_') || 'lista'; }
-async function confirmImport(){
-  const file = $('importFile').files[0];
-  if (!file) return alert('Seleziona un file JSON da importare.');
-  if (!confirm('ATTENZIONE: questa operazione cancellerà tutte le categorie e i prodotti attuali della lista selezionata. Procedere?')) return;
-  let parsed;
-  try { parsed = JSON.parse(await file.text()); }
-  catch { return alert('Il file non è un JSON valido.'); }
-  await importJsonToCurrentList(parsed);
-  hideDialog();
-  reload();
-}
-async function importJsonToCurrentList(data){
-  if (!S.listId) throw new Error('Nessuna lista selezionata.');
-  if (!data || !Array.isArray(data.categorie) || typeof data.prodotti !== 'object') {
-    alert('Formato JSON non valido.');
-    return;
-  }
-  const listId = S.listId;
-  const listName = curList()?.name || '';
-
-  const existingProds = await sb.from('products').select('id').eq('list_id', listId);
-  const existingCats = await sb.from('categories').select('id').eq('list_id', listId);
-  const oldProdIds = (existingProds.data || []).map(x => x.id);
-  const oldCatIds = (existingCats.data || []).map(x => x.id);
-
-  if (oldProdIds.length) await sb.from('list_items').delete().eq('list_id', listId).in('product_id', oldProdIds);
-  if (oldCatIds.length) await sb.from('products').delete().eq('list_id', listId);
-  await sb.from('categories').delete().eq('list_id', listId);
-
-  const categoryMap = new Map();
-  for (let i = 0; i < data.categorie.length; i++) {
-    const name = data.categorie[i];
-    const ins = await sb.from('categories').insert({ list_id: listId, name, position: i }).select().single();
-    if (ins.data) categoryMap.set(name, ins.data.id);
-  }
-
-  for (const catName of data.categorie) {
-    const catId = categoryMap.get(catName);
-    const items = Array.isArray(data.prodotti[catName]) ? data.prodotti[catName] : [];
-    for (const item of items) {
-      const obj = typeof item === 'string' ? { descrizione: item, immagine: null } : item;
-      if (!obj.descrizione) continue;
-      await sb.from('products').insert({
-        list_id: listId,
-        description: obj.descrizione,
-        category_id: catId,
-        image_url: obj.immagine || null
-      });
-    }
-  }
-}
-
-function vLists() {
-  $('view').innerHTML = `
-    <div class="card"><input id="nl" placeholder="Nuova lista (es. Esselunga)"><button class="b" onclick="addList()">Crea</button></div>
-    ${S.lists.map(l => `<div class="card ${l.id === S.listId ? 'sel' : ''}">
-      <div class="chk">${l.id === S.listId ? '✓' : ''}</div>
-      <div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div>
-      <button class="b rd" onclick="delList('${l.id}')">🗑</button></div>`).join('')}`;
-}
-async function addList() { const n = $('nl').value.trim(); if (!n) return;
-  const r = await sb.from('shopping_lists').insert({ name: n }).select().single();
-  if (r.data) { S.listId = r.data.id; localStorage.setItem('listId', S.listId); } reload(); }
-function selList(id) { S.listId = id; localStorage.setItem('listId', id); reload(); }
-async function delList(id) { if (confirm('Eliminare la lista?')) { await sb.from('shopping_lists').delete().eq('id', id); reload(); } }
-
-function vCats() {
-  $('view').innerHTML = `
-    <div class="card"><input id="nc" placeholder="Nuova categoria"><button class="b" onclick="addCat()">Aggiungi</button></div>
-    <div class="mu" style="margin:0 4px 8px">Ordine di visualizzazione nella spesa.</div>
-    ${S.cats.map((c, i) => `<div class="card"><div class="grow"><b>${esc(c.name)}</b></div>
-      <button class="b gh" ${i === 0 ? 'disabled' : ''} onclick="moveCat(${i},-1)">▲</button>
-      <button class="b gh" ${i === S.cats.length - 1 ? 'disabled' : ''} onclick="moveCat(${i},1)">▼</button>
-      <button class="b gh" onclick="renCat('${c.id}')">✏️</button>
-      <button class="b rd" onclick="delCat('${c.id}')">🗑</button></div>`).join('')}`;
-}
-async function addCat() { const n = $('nc').value.trim(); if (!n) return;
-  const pos = S.cats.length ? Math.max(...S.cats.map(c => c.position)) + 1 : 0;
-  const r = await sb.from('categories').insert({ name: n, position: pos, list_id: S.listId }); if (r.error) alert(r.error.message); reload(); }
-async function moveCat(i, d) { const a = S.cats[i], b = S.cats[i + d]; if (!b) return;
-  const arr = [...S.cats]; [arr[i], arr[i + d]] = [arr[i + d], arr[i]];
-  await Promise.all(arr.map((c, k) => sb.from('categories').update({ position: k }).eq('id', c.id))); reload(); }
-async function renCat(id) { const n = prompt('Nuovo nome:'); if (n) { await sb.from('categories').update({ name: n }).eq('id', id); reload(); } }
-async function delCat(id) { if (!confirm('Eliminare la categoria?')) return;
-  const r = await sb.from('categories').delete().eq('id', id); if (r.error) alert('Categoria in uso da dei prodotti.'); reload(); }
-
-function vProds() {
-  $('view').innerHTML = `
-    <div class="card col">
-      <input id="pd" placeholder="Descrizione prodotto">
-      <select id="pc">${S.cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select>
-      <div class="row">
-        <label class="b gh camera-label" for="pi">📷 Foto</label>
-        <input id="pi" type="file" accept="image/*" capture="environment" style="display:none">
-      </div>
-      <button class="b wide-btn" onclick="addProd()">Aggiungi prodotto</button>
-    </div>
-    ${S.cats.map(c => { const ps = S.prods.filter(p => p.category_id === c.id); if (!ps.length) return '';
-      return `<h2>${esc(c.name)}</h2>` + ps.map(p => `<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="small-actions"><button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div></div></div>`).join(''); }).join('')}`;
-}
-async function addProd() {
-  const d = $('pd').value.trim(), c = $('pc').value; if (!d || !c) return alert('Inserisci descrizione e categoria');
-  let url = null; const f = $('pi').files[0];
-  if (f) { const path = crypto.randomUUID() + '-' + f.name.replace(/[^\w.]/g, '_');
-    const u = await sb.storage.from('product-images').upload(path, f);
-    if (u.error) return alert(u.error.message);
-    url = sb.storage.from('product-images').getPublicUrl(path).data.publicUrl; }
-  const r = await sb.from('products').insert({ description: d, category_id: c, image_url: url, list_id: S.listId });
-  if (r.error) alert(r.error.message); reload();
-}
-async function editProd(id) { const p = prod(id); const n = prompt('Descrizione:', p.description); if (n) { await sb.from('products').update({ description: n }).eq('id', id); reload(); } }
-async function delProd(id) { if (confirm('Eliminare il prodotto?')) { await sb.from('products').delete().eq('id', id); reload(); } }
-
-function vPick() {
-  if (!S.listId) return $('view').innerHTML = '<div class="card">Crea prima una lista.</div>';
-  $('view').innerHTML = S.cats.map(c => {
-    const ps = S.prods.filter(p => p.category_id === c.id);
-    if (!ps.length) return '';
-    return `<h2>${esc(c.name)}</h2>` + ps.map(p => {
-      const item = S.items.find(i => i.product_id === p.id);
-      const qty = item ? Number(item.quantity || 1) : 1;
-      const selected = !!item;
-      return `<div class="card ${selected ? 'sel' : ''}" onclick="toggleItem('${p.id}')">
-        <div class="chk">${selected ? '✓' : ''}</div>
-        ${thumb(p)}
-        <div class="grow"><div class="product-name">${esc(p.description)}</div></div>
-        <div class="qtybox" onclick="event.stopPropagation();">
-          <button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', -1)">−</button>
-          <span>${qty}</span>
-          <button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', 1)">+</button>
-        </div>
-      </div>`;
-    }).join('');
-  }).join('') || '<div class="card">Nessun prodotto: aggiungili dalla pagina Prodotti.</div>';
-}
-async function toggleItem(pid) {
-  const ex = S.items.find(i => i.product_id === pid);
-  if (ex) {
-    await sb.from('list_items').delete().eq('id', ex.id);
-  } else {
-    await sb.from('list_items').insert({ list_id: S.listId, product_id: pid, quantity: 1, status: 'to_buy' });
-  }
-  reload();
-}
-async function changeQty(pid, delta) {
-  const item = S.items.find(i => i.product_id === pid);
-  const current = item ? Number(item.quantity || 1) : 1;
-  const next = Math.max(1, current + delta);
-  if (!item) {
-    await sb.from('list_items').insert({ list_id: S.listId, product_id: pid, quantity: next, status: 'to_buy' });
-  } else {
-    await sb.from('list_items').update({ quantity: next }).eq('id', item.id);
-  }
-  reload();
-}
-
-function vShop() {
-  if (!S.listId) return $('view').innerHTML = '<div class="card">Crea prima una lista.</div>';
-  const items = S.items || [];
-  const toBuy = items.filter(i => i.status !== 'purchased');
-  const bought = items.filter(i => i.status === 'purchased');
-  const tot = toBuy.length + bought.length;
-  const done = bought.length;
-
-  let html = `
-    <div class="card col"><b>Mancano ${toBuy.length} prodotti su ${tot}</b>
-      <div class="bar"><i style="width:${tot ? (done / tot) * 100 : 0}%"></i></div>
-      <button class="b ok wide-btn" onclick="closeCart()">✅ Chiudi carrello</button></div>
-  `;
-
-  if (toBuy.length) {
-    html += S.cats.map(c => {
-      const its = toBuy.filter(i => prod(i.product_id)?.category_id === c.id);
-      if (!its.length) return '';
-      return `<h2>${esc(c.name)}</h2>` + its.map(i => {
-        const p = prod(i.product_id);
-        return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity || 1}</div></div></div>`;
-      }).join('');
-    }).join('');
-  } else {
-    html += '<div class="card">Nessun prodotto da acquistare.</div>';
-  }
-
-  if (bought.length) {
-    html += '<h2>Acquistati</h2>';
-    html += S.cats.map(c => {
-      const its = bought.filter(i => prod(i.product_id)?.category_id === c.id);
-      if (!its.length) return '';
-      return its.map(i => {
-        const p = prod(i.product_id);
-        return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity || 1}</div></div></div>`;
-      }).join('');
-    }).join('');
-  }
-
-  $('view').innerHTML = html;
-}
-async function buy(id, v) { await sb.from('list_items').update({ status: v ? 'purchased' : 'to_buy', updated_at: new Date().toISOString() }).eq('id', id); reload(); }
-async function closeCart() {
-  if (!confirm('Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.')) return;
-  await sb.from('list_items').delete().eq('list_id', S.listId).eq('status', 'purchased'); reload();
-}
-
-function openPhotoModal(url) {
-  $('photoModalImg').src = url;
-  $('photoModal').classList.add('open');
-}
-function hidePhotoModal() {
-  $('photoModal').classList.remove('open');
-  $('photoModalImg').src = '';
-}
-function closePhotoModal(event) {
-  if (event.target.id === 'photoModal') hidePhotoModal();
-}
+const SUPABASE_URL='https://tdagxuyvckiageppiwbh.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let S={cats:[],prods:[],lists:[],items:[],page:'lists',listId:localStorage.getItem('listId'),listName:''};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
+sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;if(session)reload();});
+async function reload(){const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);S.cats=c.data||[];S.prods=p.data||[];S.lists=l.data||[];if(!S.lists.find(x=>x.id===S.listId))S.listId=S.lists[0]?.id||null;S.listName=curList()?.name||'';if(S.listId){const i=await sb.from('list_items').select('*').eq('list_id',S.listId);S.items=i.data||[]}else S.items=[];render();}
+function go(p){S.page=p;render();}
+const curList=()=>S.lists.find(l=>l.id===S.listId);
+const prod=id=>S.prods.find(p=>p.id===id);
+const thumb=p=>p?.image_url?`<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" onclick="event.stopPropagation(); openPhotoModal('${esc(p.image_url)}')">`:`<div class="list-avatar">🛒</div>`;
+function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===S.page));$('title').textContent='🛒 '+(curList()?.name||'Spesa');({lists:vLists,cats:vCats,prods:vProds,pick:vPick,shop:vShop})[S.page]();}
+function showDialog(html){$('dialogHost').innerHTML=html;$('dialogHost').style.display='flex';$('overlay').classList.add('open');}
+function hideDialog(){$('dialogHost').style.display='none';$('dialogHost').innerHTML='';$('overlay').classList.remove('open');}
+function closeDialog(event){if(event.target.id==='overlay') hideDialog();}
+function exportListJson(){const list=curList();const cats=S.cats.slice().sort((a,b)=>a.position-b.position);const productsByCat={};cats.forEach(cat=>{productsByCat[cat.name]=S.prods.filter(p=>p.category_id===cat.id).map(p=>({descrizione:p.description,immagine:p.image_url||null}))});return{lista:list?.name||'lista',categorie:cats.map(c=>c.name),prodotti:productsByCat};}
+function openExportModal(){if(!S.listId) return alert('Seleziona una lista prima di esportare.');showDialog(`<div class="modal-panel"><h3>Esporta JSON</h3><p>Verrà scaricato un file con il nome della lista attiva. Il file contiene solo <b>categorie</b> e <b>prodotti</b>, incluse le immagini quando presenti.</p><textarea readonly>${esc(JSON.stringify(exportListJson(),null,2))}</textarea><div class="modal-actions"><button class="b gh" onclick="hideDialog()">Chiudi</button><button class="b" onclick="downloadExport()">Scarica JSON</button></div></div>`)}
+function openImportModal(){if(!S.listId) return alert('Seleziona una lista prima di importare.');showDialog(`<div class="modal-panel"><h3>Importa JSON</h3><p><b>ATTENZIONE:</b> l'importazione <b>SOVRASCRIVE TUTTI</b> i dati di <b>categorie</b> e <b>prodotti</b> della lista attiva. I dati attuali verranno persi.</p><input id="importFile" type="file" accept="application/json,.json"><div class="modal-actions"><button class="b gh" onclick="hideDialog()">Annulla</button><button class="b rd" onclick="confirmImport()">Importa e sovrascrivi</button></div></div>`)}
+function downloadExport(){const list=curList();const data=JSON.stringify(exportListJson(),null,2);const blob=new Blob([data],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${sanitizeFileName(list?.name||'lista')}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+function sanitizeFileName(name){return String(name).trim().replace(/[\\/:*?"<>|]+/g,'_')||'lista';}
+async function confirmImport(){const file=$('importFile').files[0];if(!file) return alert('Seleziona un file JSON da importare.');if(!confirm('ATTENZIONE: questa operazione cancellerà tutte le categorie e i prodotti attuali della lista selezionata. Procedere?')) return;let parsed;try{parsed=JSON.parse(await file.text())}catch{return alert('Il file non è un JSON valido.')}await importJsonToCurrentList(parsed);hideDialog();reload();}
+async function importJsonToCurrentList(data){if(!S.listId) throw new Error('Nessuna lista selezionata.');if(!data||!Array.isArray(data.categorie)||typeof data.prodotti!=='object'){alert('Formato JSON non valido.');return;}const listId=S.listId;const existingProds=await sb.from('products').select('id').eq('list_id',listId);const existingCats=await sb.from('categories').select('id').eq('list_id',listId);const oldProdIds=(existingProds.data||[]).map(x=>x.id);const oldCatIds=(existingCats.data||[]).map(x=>x.id);if(oldProdIds.length) await sb.from('list_items').delete().eq('list_id',listId).in('product_id',oldProdIds);if(oldCatIds.length) await sb.from('products').delete().eq('list_id',listId);await sb.from('categories').delete().eq('list_id',listId);const categoryMap=new Map();for(let i=0;i<data.categorie.length;i++){const name=data.categorie[i];const ins=await sb.from('categories').insert({list_id:listId,name,position:i}).select().single();if(ins.data) categoryMap.set(name,ins.data.id)}for(const catName of data.categorie){const catId=categoryMap.get(catName);const items=Array.isArray(data.prodotti[catName])?data.prodotti[catName]:[];for(const item of items){const obj=typeof item==='string'?{descrizione:item,immagine:null}:item;if(!obj.descrizione) continue;await sb.from('products').insert({list_id:listId,description:obj.descrizione,category_id:catId,image_url:obj.immagine||null})}}}
+function vLists(){const hasList = !!S.listId;$('view').innerHTML=`<div class="card"><input id="nl" placeholder="Nuova lista (es. Esselunga)"><button class="b" onclick="addList()">Crea</button></div>${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b rd" onclick="delList('${l.id}')">🗑</button></div>`).join('')}<div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">Esporta JSON</button><button class="b gh" onclick="openImportModal()">Importa JSON</button>`:'<button class="b gh" onclick="alert(\'Seleziona una lista prima di esportare/importare.\')">Esporta/Importa</button>'}</div>`;}
+async function addList(){const n=$('nl').value.trim();if(!n) return;const r=await sb.from('shopping_lists').insert({name:n}).select().single();if(r.data){S.listId=r.data.id;localStorage.setItem('listId',S.listId)}reload();}
+function selList(id){S.listId=id;localStorage.setItem('listId',id);reload();}
+async function delList(id){if(confirm('Eliminare la lista?')){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
+function vCats(){$('view').innerHTML=`<div class="card"><input id="nc" placeholder="Nuova categoria"><button class="b" onclick="addCat()">Aggiungi</button></div><div class="mu" style="margin:0 4px 8px">Ordine di visualizzazione nella spesa.</div>${S.cats.map((c,i)=>`<div class="card"><div class="grow"><b>${esc(c.name)}</b></div><button class="b gh" ${i===0?'disabled':''} onclick="moveCat(${i},-1)">▲</button><button class="b gh" ${i===S.cats.length-1?'disabled':''} onclick="moveCat(${i},1)">▼</button><button class="b gh" onclick="renCat('${c.id}')">✏️</button><button class="b rd" onclick="delCat('${c.id}')">🗑</button></div>`).join('')}`;}
+async function addCat(){const n=$('nc').value.trim();if(!n) return;const pos=S.cats.length?Math.max(...S.cats.map(c=>c.position))+1:0;const r=await sb.from('categories').insert({name:n,position:pos,list_id:S.listId});if(r.error) alert(r.error.message);reload();}
+async function moveCat(i,d){const a=S.cats[i],b=S.cats[i+d];if(!b) return;const arr=[...S.cats];[arr[i],arr[i+d]]=[arr[i+d],arr[i]];await Promise.all(arr.map((c,k)=>sb.from('categories').update({position:k}).eq('id',c.id)));reload();}
+async function renCat(id){const n=prompt('Nuovo nome:');if(n){await sb.from('categories').update({name:n}).eq('id',id);reload();}}
+async function delCat(id){if(!confirm('Eliminare la categoria?')) return;const r=await sb.from('categories').delete().eq('id',id);if(r.error) alert('Categoria in uso da dei prodotti.');reload();}
+function vProds(){$('view').innerHTML=`<div class="card col"><input id="pd" placeholder="Descrizione prodotto"><select id="pc">${S.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">📷 Foto</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">Aggiungi prodotto</button></div>${S.cats.map(c=>{const ps=S.prods.filter(p=>p.category_id===c.id);if(!ps.length) return '';return `<h2>${esc(c.name)}</h2>`+ps.map(p=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="small-actions"><button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div></div></div>`).join('');}).join('')}`;}
+async function addProd(){const d=$('pd').value.trim(),c=$('pc').value;if(!d||!c) return alert('Inserisci descrizione e categoria');let url=null;const f=$('pi').files[0];if(f){const path=crypto.randomUUID()+'-'+f.name.replace(/[^\w.]/g,'_');const u=await sb.storage.from('product-images').upload(path,f);if(u.error) return alert(u.error.message);url=sb.storage.from('product-images').getPublicUrl(path).data.publicUrl}const r=await sb.from('products').insert({description:d,category_id:c,image_url:url,list_id:S.listId});if(r.error) alert(r.error.message);reload();}
+async function editProd(id){const p=prod(id);const n=prompt('Descrizione:',p.description);if(n){await sb.from('products').update({description:n}).eq('id',id);reload();}}
+async function delProd(id){if(confirm('Eliminare il prodotto?')){await sb.from('products').delete().eq('id',id);reload();}}
+function vPick(){if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';$('view').innerHTML=S.cats.map(c=>{const ps=S.prods.filter(p=>p.category_id===c.id);if(!ps.length) return '';return `<h2>${esc(c.name)}</h2>`+ps.map(p=>{const item=S.items.find(i=>i.product_id===p.id);const qty=item?Number(item.quantity||1):1;const selected=!!item;return `<div class="card ${selected?'sel':''}" onclick="toggleItem('${p.id}')"><div class="chk">${selected?'✓':''}</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div></div><div class="qtybox" onclick="event.stopPropagation();"><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', -1)">−</button><span>${qty}</span><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', 1)">+</button></div></div>`;}).join('');}).join('')||'<div class="card">Nessun prodotto: aggiungili dalla pagina Prodotti.</div>';}
+async function toggleItem(pid){const ex=S.items.find(i=>i.product_id===pid);if(ex){await sb.from('list_items').delete().eq('id',ex.id);}else{await sb.from('list_items').insert({list_id:S.listId,product_id:pid,quantity:1,status:'to_buy'});}reload();}
+async function changeQty(pid,delta){const item=S.items.find(i=>i.product_id===pid);const current=item?Number(item.quantity||1):1;const next=Math.max(1,current+delta);if(!item){await sb.from('list_items').insert({list_id:S.listId,product_id:pid,quantity:next,status:'to_buy'});}else{await sb.from('list_items').update({quantity:next}).eq('id',item.id);}reload();}
+function vShop(){if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';const items=S.items||[];const toBuy=items.filter(i=>i.status!=='purchased');const bought=items.filter(i=>i.status==='purchased');const tot=toBuy.length+bought.length;const done=bought.length;let html=`<div class="card col"><b>Mancano ${toBuy.length} prodotti su ${tot}</b><div class="bar"><i style="width:${tot?(done/tot)*100:0}%"></i></div><button class="b ok wide-btn" onclick="closeCart()">✅ Chiudi carrello</button></div>`;if(toBuy.length){html+=S.cats.map(c=>{const its=toBuy.filter(i=>prod(i.product_id)?.category_id===c.id);if(!its.length) return '';return `<h2>${esc(c.name)}</h2>`+its.map(i=>{const p=prod(i.product_id);return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join('');}).join('');}else{html+='<div class="card">Nessun prodotto da acquistare.</div>';}if(bought.length){html+='<h2>Acquistati</h2>';html+=S.cats.map(c=>{const its=bought.filter(i=>prod(i.product_id)?.category_id===c.id);if(!its.length) return '';return its.map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join('');}).join('');}$('view').innerHTML=html;}
+async function buy(id,v){await sb.from('list_items').update({status:v?'purchased':'to_buy',updated_at:new Date().toISOString()}).eq('id',id);reload();}
+async function closeCart(){if(!confirm('Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.')) return;await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');reload();}
+function openPhotoModal(url){$('photoModalImg').src=url;$('photoModal').classList.add('open');}
+function hidePhotoModal(){$('photoModal').classList.remove('open');$('photoModalImg').src='';}
+function closePhotoModal(event){if(event.target.id==='photoModal') hidePhotoModal();}
 </script>
 </body>
 </html>
