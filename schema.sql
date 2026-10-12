@@ -49,10 +49,24 @@ alter table shopping_lists enable row level security;
 alter table list_items enable row level security;
 alter table list_shares enable row level security;
 
-drop policy if exists "auth all categories" on categories;
-drop policy if exists "auth all products" on products;
-drop policy if exists "auth all shopping_lists" on shopping_lists;
-drop policy if exists "auth all list_items" on list_items;
+do $$
+declare
+  existing_policy record;
+begin
+  for existing_policy in
+    select tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('shopping_lists', 'categories', 'products', 'list_items', 'list_shares')
+  loop
+    execute format(
+      'drop policy if exists %I on public.%I',
+      existing_policy.policyname,
+      existing_policy.tablename
+    );
+  end loop;
+end;
+$$;
 
 create or replace function public.has_list_access(p_list_id uuid)
 returns boolean

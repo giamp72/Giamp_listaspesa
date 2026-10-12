@@ -75,14 +75,25 @@ revoke all on function public.share_list_with_email(uuid, text) from public;
 grant execute on function public.has_list_access(uuid) to authenticated;
 grant execute on function public.share_list_with_email(uuid, text) to authenticated;
 
-drop policy if exists "auth all categories" on public.categories;
-drop policy if exists "auth all products" on public.products;
-drop policy if exists "auth all shopping_lists" on public.shopping_lists;
-drop policy if exists "auth all list_items" on public.list_items;
-drop policy if exists "lists select accessible" on public.shopping_lists;
-drop policy if exists "lists insert owned" on public.shopping_lists;
-drop policy if exists "lists update owned" on public.shopping_lists;
-drop policy if exists "lists delete owned" on public.shopping_lists;
+do $$
+declare
+  existing_policy record;
+begin
+  for existing_policy in
+    select tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('shopping_lists', 'categories', 'products', 'list_items', 'list_shares')
+  loop
+    execute format(
+      'drop policy if exists %I on public.%I',
+      existing_policy.policyname,
+      existing_policy.tablename
+    );
+  end loop;
+end;
+$$;
+
 create policy "lists select accessible" on public.shopping_lists
 for select to authenticated using (public.has_list_access(id));
 create policy "lists insert owned" on public.shopping_lists

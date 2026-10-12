@@ -153,7 +153,7 @@ function restoreFocus(st){
   try{if(st.s!=null)el.setSelectionRange(st.s,st.e);}catch(e){}
 }
 
-async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
+async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value,options:{emailRedirectTo:window.location.origin+window.location.pathname}}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
 function togglePassword(){const input=$('pw'),button=input.nextElementSibling;const showing=input.type==='password';input.type=showing?'text':'password';button.textContent=showing?'Nascondi':'Mostra';button.setAttribute('aria-label',showing?'Nascondi password':'Mostra password');button.setAttribute('aria-pressed',String(showing));}
 sb.auth.onAuthStateChange((_e,session)=>{S.userId=session?.user?.id||null;$('login').hidden=!!session;$('app').hidden=!session;if(session)reload();});
 async function reload(){
