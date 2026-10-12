@@ -55,6 +55,8 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .small-actions{display:flex;gap:6px;align-items:center}
 .row{display:flex;gap:8px;align-items:center}
 .camera-label{display:inline-flex;align-items:center;justify-content:center}
+.password-field{display:flex;gap:6px;align-items:center}
+.password-field input{flex:1;min-width:0}
 .item-card{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
 .product-name{font-weight:600;line-height:1.3;word-break:break-word;color:var(--tx)}
 .product-meta{font-size:12px;color:var(--mu);margin-top:2px}
@@ -82,7 +84,7 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
   <div class="card col">
     <h1>🛒 Lista della Spesa</h1>
     <input id="em" type="email" placeholder="Email">
-    <input id="pw" type="password" placeholder="Password">
+    <div class="password-field"><input id="pw" type="password" placeholder="Password"><button class="b gh" type="button" onclick="togglePassword()" aria-label="Mostra password" aria-pressed="false">Mostra</button></div>
     <button class="b" onclick="auth(false)">Accedi</button>
     <button class="b gh" onclick="auth(true)">Registrati</button>
     <div id="lerr" class="mu"></div>
@@ -112,7 +114,7 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 const SUPABASE_URL='https://tdagxuyvckiageppiwbh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-let S={cats:[],prods:[],lists:[],items:[],page:'lists',listId:localStorage.getItem('listId'),listName:''};
+let S={cats:[],prods:[],lists:[],items:[],page:'lists',listId:localStorage.getItem('listId'),listName:'',userId:null};
 let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch{COL={}}
 let filterText='';
 let FLAT=localStorage.getItem('flatView')==='1';
@@ -152,7 +154,8 @@ function restoreFocus(st){
 }
 
 async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
-sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;if(session)reload();});
+function togglePassword(){const input=$('pw'),button=input.nextElementSibling;const showing=input.type==='password';input.type=showing?'text':'password';button.textContent=showing?'Nascondi':'Mostra';button.setAttribute('aria-label',showing?'Nascondi password':'Mostra password');button.setAttribute('aria-pressed',String(showing));}
+sb.auth.onAuthStateChange((_e,session)=>{S.userId=session?.user?.id||null;$('login').hidden=!!session;$('app').hidden=!session;if(session)reload();});
 async function reload(){
   const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);
   S.lists=l.data||[];
@@ -188,10 +191,13 @@ async function confirmImport(){const file=$('importFile').files[0];if(!file) ret
 async function importJsonToCurrentList(data){if(!S.listId) throw new Error('Nessuna lista selezionata.');if(!data||!Array.isArray(data.categorie)||typeof data.prodotti!=='object'){alert('Formato JSON non valido.');return;}const listId=S.listId;await sb.from('list_items').delete().eq('list_id',listId);await sb.from('products').delete().eq('list_id',listId);await sb.from('categories').delete().eq('list_id',listId);const categoryMap=new Map();for(let i=0;i<data.categorie.length;i++){const name=data.categorie[i];const ins=await sb.from('categories').insert({list_id:listId,name,position:i}).select().single();if(ins.data) categoryMap.set(name,ins.data.id)}for(const catName of data.categorie){const catId=categoryMap.get(catName);const items=Array.isArray(data.prodotti[catName])?data.prodotti[catName]:[];for(const item of items){const obj=typeof item==='string'?{descrizione:item,immagine:null}:item;if(!obj.descrizione) continue;await sb.from('products').insert({list_id:listId,description:obj.descrizione,category_id:catId,image_url:obj.immagine||null})}}}
 
 /* ---- liste ---- */
-function vLists(){const hasList=!!S.listId;$('view').innerHTML=`<div class="card"><input id="nl" placeholder="Nuova lista (es. Esselunga)"><button class="b" onclick="addList()">Crea</button></div>${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b rd" onclick="delList('${l.id}')">🗑</button></div>`).join('')}<div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">Esporta JSON</button><button class="b gh" onclick="openImportModal()">Importa JSON</button>`:'<button class="b gh" onclick="alert(\'Seleziona una lista prima di esportare/importare.\')">Esporta/Importa</button>'}</div>`;}
+function vLists(){const hasList=!!S.listId;$('view').innerHTML=`<div class="card"><input id="nl" placeholder="Nuova lista (es. Esselunga)"><button class="b" onclick="addList()">Crea</button></div>${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b>${l.owner_id!==S.userId?'<div class="product-meta">Condivisa con te</div>':''}</div>${l.owner_id===S.userId?`<button class="b gh" onclick="openShareModal('${l.id}')">Condividi</button><button class="b rd" onclick="delList('${l.id}')">🗑</button>`:''}</div>`).join('')}<div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">Esporta lista</button><button class="b gh" onclick="openImportModal()">Importa lista</button>`:'<button class="b gh" onclick="alert(\'Seleziona una lista prima di esportare/importare.\')">Esporta/Importa</button>'}</div>`;}
 async function addList(){const n=$('nl').value.trim();if(!n) return;const r=await sb.from('shopping_lists').insert({name:n}).select().single();if(r.data){S.listId=r.data.id;localStorage.setItem('listId',S.listId)}reload();}
 function selList(id){S.listId=id;localStorage.setItem('listId',id);reload();}
 async function delList(id){if(confirm('Eliminare la lista?')){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
+async function openShareModal(listId){const list=S.lists.find(l=>l.id===listId);if(!list||list.owner_id!==S.userId)return;const result=await sb.from('list_shares').select('shared_with_id,shared_with_email').eq('list_id',listId);if(result.error)return alert(result.error.message);showDialog(`<div class="modal-panel"><h3>Condividi “${esc(list.name)}”</h3><p>Inserisci l’email di un utente già registrato per condividere la lista.</p><div class="row"><input id="shareEmail" type="email" placeholder="Email utente"><button class="b" onclick="shareList('${listId}')">Condividi</button></div><h2>Utenti con accesso</h2>${(result.data||[]).map(share=>`<div class="card"><span class="grow">${esc(share.shared_with_email)}</span><button class="b rd" onclick="removeListShare('${listId}','${share.shared_with_id}')">Rimuovi</button></div>`).join('')||'<div class="mu">Nessun utente con cui condividere.</div>'}<div class="modal-actions"><button class="b gh" onclick="hideDialog()">Chiudi</button></div></div>`);}
+async function shareList(listId){const email=$('shareEmail').value.trim();if(!email)return alert('Inserisci l’email dell’utente.');const result=await sb.rpc('share_list_with_email',{p_list_id:listId,p_email:email});if(result.error)return alert(result.error.message);openShareModal(listId);}
+async function removeListShare(listId,userId){const result=await sb.from('list_shares').delete().eq('list_id',listId).eq('shared_with_id',userId);if(result.error)return alert(result.error.message);openShareModal(listId);}
 
 /* ---- categorie ---- */
 let selectedCatId=null;

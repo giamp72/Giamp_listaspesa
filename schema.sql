@@ -31,6 +31,14 @@ create table if not exists list_items (
   unique (list_id, product_id)
 );
 
+create table if not exists list_shares (
+  list_id uuid not null references shopping_lists(id) on delete cascade,
+  shared_with_id uuid not null references auth.users(id) on delete cascade,
+  shared_with_email text not null,
+  created_at timestamptz not null default now(),
+  primary key (list_id, shared_with_id)
+);
+
 create index if not exists idx_products_category_id on products(category_id);
 create index if not exists idx_list_items_list_id on list_items(list_id);
 create index if not exists idx_list_items_status on list_items(status);
@@ -39,39 +47,115 @@ alter table categories enable row level security;
 alter table products enable row level security;
 alter table shopping_lists enable row level security;
 alter table list_items enable row level security;
+alter table list_shares enable row level security;
 
 drop policy if exists "auth all categories" on categories;
 drop policy if exists "auth all products" on products;
 drop policy if exists "auth all shopping_lists" on shopping_lists;
 drop policy if exists "auth all list_items" on list_items;
 
-create policy "auth all categories"
-on categories
-for all
-to authenticated
-using (true)
-with check (true);
+create or replace function public.has_list_access(p_list_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.shopping_lists l
+    where l.id = p_list_id and l.owner_id = auth.uid()
+  ) or exists (
+    select 1
+    from public.list_shares s
+    where s.list_id = p_list_id and s.shared_with_id = auth.uid()
+  );
+$$;
 
-create policy "auth all products"
-on products
-for all
-to authenticated
-using (true)
-with check (true);
+create or replace function public.share_list_with_email(p_list_id uuid, p_email text)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  recipient_id uuid;
+  normalized_email text := lower(trim(p_email));
+begin
+  if not exists (
+    select 1 from public.shopping_lists
+    where id = p_list_id and owner_id = auth.uid()
+  ) then
+    raise exception 'Solo il proprietario può condividere questa lista.';
+  end if;
 
-create policy "auth all shopping_lists"
-on shopping_lists
-for all
-to authenticated
-using (true)
-with check (true);
+  if normalized_email is null or normalized_email = '' then
+    raise exception 'Inserisci un indirizzo email valido.';
+  end if;
 
-create policy "auth all list_items"
-on list_items
-for all
-to authenticated
-using (true)
-with check (true);
+  select id into recipient_id
+  from auth.users
+  where lower(email) = normalized_email;
+
+  if recipient_id is null then
+    raise exception 'Nessun utente registrato con questa email.';
+  end if;
+
+  if recipient_id = auth.uid() then
+    raise exception 'Non puoi condividere la lista con te stesso.';
+  end if;
+
+  insert into public.list_shares (list_id, shared_with_id, shared_with_email)
+  values (p_list_id, recipient_id, normalized_email)
+  on conflict (list_id, shared_with_id)
+  do update set shared_with_email = excluded.shared_with_email;
+end;
+$$;
+
+revoke all on function public.has_list_access(uuid) from public;
+revoke all on function public.share_list_with_email(uuid, text) from public;
+grant execute on function public.has_list_access(uuid) to authenticated;
+grant execute on function public.share_list_with_email(uuid, text) to authenticated;
+
+drop policy if exists "lists select accessible" on shopping_lists;
+drop policy if exists "lists insert owned" on shopping_lists;
+drop policy if exists "lists update owned" on shopping_lists;
+drop policy if exists "lists delete owned" on shopping_lists;
+create policy "lists select accessible" on shopping_lists
+for select to authenticated using (public.has_list_access(id));
+create policy "lists insert owned" on shopping_lists
+for insert to authenticated with check (owner_id = auth.uid());
+create policy "lists update owned" on shopping_lists
+for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+create policy "lists delete owned" on shopping_lists
+for delete to authenticated using (owner_id = auth.uid());
+
+drop policy if exists "categories list access" on categories;
+create policy "categories list access" on categories
+for all to authenticated
+using (public.has_list_access(list_id))
+with check (public.has_list_access(list_id));
+
+drop policy if exists "products list access" on products;
+create policy "products list access" on products
+for all to authenticated
+using (public.has_list_access(list_id))
+with check (public.has_list_access(list_id));
+
+drop policy if exists "list items list access" on list_items;
+create policy "list items list access" on list_items
+for all to authenticated
+using (public.has_list_access(list_id))
+with check (public.has_list_access(list_id));
+
+drop policy if exists "shares select owned" on list_shares;
+drop policy if exists "shares delete owned" on list_shares;
+create policy "shares select owned" on list_shares
+for select to authenticated
+using (exists (select 1 from public.shopping_lists l where l.id = list_id and l.owner_id = auth.uid()));
+create policy "shares delete owned" on list_shares
+for delete to authenticated
+using (exists (select 1 from public.shopping_lists l where l.id = list_id and l.owner_id = auth.uid()));
 
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)
