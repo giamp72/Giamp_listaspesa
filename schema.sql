@@ -126,10 +126,34 @@ begin
 end;
 $$;
 
+create or replace function public.create_shopping_list(p_name text)
+returns setof public.shopping_lists
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Devi accedere per creare una lista.';
+  end if;
+
+  if nullif(trim(p_name), '') is null then
+    raise exception 'Il nome della lista è obbligatorio.';
+  end if;
+
+  return query
+  insert into public.shopping_lists (name, owner_id)
+  values (trim(p_name), auth.uid())
+  returning *;
+end;
+$$;
+
 revoke all on function public.has_list_access(uuid) from public;
 revoke all on function public.share_list_with_email(uuid, text) from public;
+revoke all on function public.create_shopping_list(text) from public;
 grant execute on function public.has_list_access(uuid) to authenticated;
 grant execute on function public.share_list_with_email(uuid, text) to authenticated;
+grant execute on function public.create_shopping_list(text) to authenticated;
 
 drop policy if exists "lists select accessible" on shopping_lists;
 drop policy if exists "lists insert owned" on shopping_lists;
