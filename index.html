@@ -4,18 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#000000">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <title>Lista della Spesa</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{color-scheme:dark;--bg:#000;--card:#141414;--card2:#1c1c1c;--bd:#2b2b2b;--tx:#f1f1f1;--mu:#a1a1a1;--pri:#e4e4e4;--pri-tx:#0a0a0a;--ok:#7fc99a;--danger:#e08a8a}
+:root{color-scheme:dark;--bg:#000;--card:#141414;--card2:#1c1c1c;--bd:#2b2b2b;--tx:#f1f1f1;--mu:#a1a1a1;--pri:#e4e4e4;--pri-tx:#0a0a0a;--ok:#7fc99a;--danger:#e08a8a;--bar:#0b0b0b;--inp:#0d0d0d;--btn2:#2a2a2a;--doneBg:#0d0d0d;--selBg:#171717;--track:#262626;--panel:#101010}
+:root[data-theme=light]{color-scheme:light;--bg:#f3f3f3;--card:#fff;--card2:#ececec;--bd:#d4d4d4;--tx:#161616;--mu:#666;--pri:#222;--pri-tx:#fff;--ok:#2f9e5b;--danger:#c0392b;--bar:#fff;--inp:#fff;--btn2:#e0e0e0;--doneBg:#eaeaea;--selBg:#f0f0f0;--track:#ddd;--panel:#fff}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px}
 body{padding-bottom:76px}
-header{background:#0b0b0b;color:var(--tx);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--bd)}
+header{background:var(--bar);color:var(--tx);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--bd)}
 header h1{font-size:15px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 main{max-width:760px;margin:0 auto;padding:10px}
-nav{position:fixed;bottom:0;left:0;right:0;background:#0b0b0b;border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:6px 0;z-index:20}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--bar);border-top:1px solid var(--bd);display:flex;justify-content:space-around;padding:6px 0;z-index:20}
 nav button{background:none;border:0;font-size:11px;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 0;min-width:0;flex:1}
 nav button span{font-size:18px;line-height:1;filter:grayscale(1)}
 nav button.on{color:var(--tx);font-weight:700}
@@ -29,7 +30,7 @@ h2.cath .chev{display:inline-grid;place-items:center;width:22px;height:22px;bord
 h2.cath .cnt{margin-left:auto;color:var(--mu);font-weight:500;letter-spacing:0}
 .expbar{display:flex;gap:8px;margin:2px 0 4px}
 .expbar .b{flex:1;font-size:13px;padding:8px 10px}
-input,select{padding:10px;background:#0d0d0d;color:var(--tx);border:1px solid var(--bd);border-radius:10px;font-size:14px;width:100%;outline:none}
+input,select{padding:10px;background:var(--inp);color:var(--tx);border:1px solid var(--bd);border-radius:10px;font-size:14px;width:100%;outline:none}
 input::placeholder{color:#767676}
 input:focus,select:focus{border-color:#6b6b6b}
 button.b{background:var(--pri);color:var(--pri-tx);border:0;border-radius:10px;padding:9px 12px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -42,15 +43,15 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .chk{width:24px;height:24px;border-radius:8px;border:2px solid #5a5a5a;display:grid;place-items:center;flex:none;font-size:15px;color:#fff;font-weight:700}
 .done .chk{background:var(--ok);border-color:var(--ok);color:#06140c}
 .sel .chk{background:var(--pri);border-color:var(--pri);color:var(--pri-tx)}
-.card.sel{background:#171717;border-color:#6b6b6b;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
-.done{background:#0d0d0d}
+.card.sel{background:var(--selBg);border-color:#6b6b6b;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+.done{background:var(--doneBg)}
 .done .product-name{text-decoration:line-through;color:var(--mu)}
-.bar{height:8px;background:#262626;border-radius:99px;overflow:hidden;margin:8px 0}
+.bar{height:8px;background:var(--track);border-radius:99px;overflow:hidden;margin:8px 0}
 .bar i{display:block;height:100%;background:var(--ok);transition:width .3s}
 .mu{color:var(--mu);font-size:12px}
 #login{max-width:360px;margin:56px auto;padding:16px}
 .qtybox{display:flex;align-items:center;gap:6px;border:1px solid var(--bd);border-radius:10px;padding:3px 5px;background:var(--card2);flex:none}
-.qtybox button{width:28px;height:28px;border-radius:8px;border:0;background:#2a2a2a;color:var(--tx);font-size:18px;font-weight:700;cursor:pointer;line-height:1}
+.qtybox button{width:28px;height:28px;border-radius:8px;border:0;background:var(--btn2);color:var(--tx);font-size:18px;font-weight:700;cursor:pointer;line-height:1}
 .qtybox span{min-width:22px;text-align:center;font-weight:700;font-size:13px;color:var(--tx)}
 .small-actions{display:flex;gap:6px;align-items:center}
 .row{display:flex;gap:8px;align-items:center}
@@ -66,14 +67,19 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .modal .close{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:999px;border:1px solid var(--bd);background:#1c1c1c;color:#f1f1f1;font-size:22px;cursor:pointer}
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:55}
 .backdrop.open{display:block}
-.modal-panel{background:#101010;border:1px solid var(--bd);border-radius:14px;max-width:560px;width:100%;padding:14px}
+.modal-panel{background:var(--panel);border:1px solid var(--bd);border-radius:14px;max-width:560px;width:100%;padding:14px}
 .modal-panel h3{margin:0 0 8px;font-size:16px}
 .modal-panel p{margin:8px 0;color:var(--mu);line-height:1.45}
-.modal-panel textarea{min-height:280px;width:100%;background:#0d0d0d;color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;font-size:12px;line-height:1.5;resize:vertical}
+.modal-panel textarea{min-height:280px;width:100%;background:var(--inp);color:var(--tx);border:1px solid var(--bd);border-radius:10px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;font-size:12px;line-height:1.5;resize:vertical}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
 .list-actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 0}
 .list-actions .b{flex:1 1 140px}
 .filter-box{margin:0 0 8px}
+header .who{font-size:11px;color:var(--mu);font-weight:400;display:block;overflow:hidden;text-overflow:ellipsis}
+.hl{min-width:0;flex:1}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}
+.modal.card-full{background:#fff;padding:0}
+.modal.card-full img{max-width:100%;max-height:100vh;width:100%;object-fit:contain;border-radius:0;box-shadow:none;background:#fff}
 @media (max-width:420px){.card{padding:8px 10px}.qtybox{padding:2px 4px}.list-actions{flex-direction:column}}
 </style>
 </head>
@@ -90,10 +96,11 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 </div>
 <div id="app" hidden>
   <header>
-    <h1 id="title">🛒 Spesa</h1>
+    <div class="hl"><h1 id="title">🛒 Spesa</h1><span class="who" id="who"></span></div>
     <div class="small-actions">
+      <button class="b gh" onclick="showLoyalty()" title="Scheda fedeltà">💳</button>
       <button class="b gh" onclick="reload()" title="Aggiorna">🔄</button>
-      <button class="b gh" onclick="sb.auth.signOut()">Esci</button>
+      <button class="b gh" onclick="openSettings()" title="Impostazioni">⚙️</button>
     </div>
   </header>
   <main id="view"></main>
@@ -106,6 +113,7 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
   </nav>
 </div>
 <div id="photoModal" class="modal" onclick="closePhotoModal(event)"><button class="close" aria-label="Chiudi" onclick="hidePhotoModal()">×</button><img id="photoModalImg" alt="Foto prodotto ingrandita"></div>
+<div id="loyaltyModal" class="modal card-full" onclick="hideLoyalty()"><button class="close" aria-label="Chiudi" onclick="hideLoyalty()">×</button><img id="loyaltyImg" alt="Scheda fedeltà"></div>
 <div id="overlay" class="backdrop" onclick="closeDialog(event)"></div>
 <div id="dialogHost" style="position:fixed;inset:0;z-index:56;display:none;align-items:center;justify-content:center;padding:16px;"></div>
 <script>
@@ -152,7 +160,44 @@ function restoreFocus(st){
 }
 
 async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
-sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;if(session)reload();});
+sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;S.user=session?.user||null;$('who').textContent=S.user?'👤 '+(S.user.user_metadata?.name||S.user.email||''):'';if(session)reload();});
+
+/* ---- impostazioni ---- */
+const LS={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v);return true}catch{return false}}};
+function applyTheme(){const light=LS.get('theme')==='light';document.documentElement.dataset.theme=light?'light':'dark';document.querySelector('meta[name=theme-color]').content=light?'#ffffff':'#000000';}
+applyTheme();
+let wakeLock=null;
+async function applyWake(){
+  try{
+    if(LS.get('keepAwake')==='1'){if('wakeLock' in navigator && !wakeLock && document.visibilityState==='visible'){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null});}}
+    else if(wakeLock){await wakeLock.release();wakeLock=null;}
+  }catch(e){wakeLock=null;}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')applyWake();});
+applyWake();
+function setTheme(v){LS.set('theme',v);applyTheme();}
+function setAwake(on){LS.set('keepAwake',on?'1':'0');applyWake();if(on&&!('wakeLock' in navigator))alert('Il browser non supporta lo schermo sempre attivo.');}
+function openSettings(){
+  const light=LS.get('theme')==='light',awake=LS.get('keepAwake')==='1',has=!!LS.get('loyaltyImg');
+  showDialog(`<div class="modal-panel"><h3>Configurazione</h3>
+  <div class="mu">${esc(S.user?.email||'')}</div>
+  <div class="setrow"><span>Modalità</span><select id="setTheme" style="width:auto" onchange="setTheme(this.value)"><option value="dark" ${light?'':'selected'}>Scura</option><option value="light" ${light?'selected':''}>Chiara</option></select></div>
+  <div class="setrow"><span>Schermo sempre attivo</span><select id="setAwake" style="width:auto" onchange="setAwake(this.value==='1')"><option value="0" ${awake?'':'selected'}>OFF</option><option value="1" ${awake?'selected':''}>ON</option></select></div>
+  <div class="setrow"><span>Scheda fedeltà (codice a barre)</span></div>
+  <div class="row"><label class="b gh camera-label" for="loyaltyFile">${has?'📷 Sostituisci':'📷 Carica immagine'}</label><input id="loyaltyFile" type="file" accept="image/*" style="display:none" onchange="saveLoyalty(this.files[0])">${has?'<button class="b gh" onclick="showLoyalty()">Mostra</button><button class="b rd" onclick="delLoyalty()">🗑</button>':''}</div>
+  <div class="modal-actions"><button class="b rd" onclick="hideDialog();sb.auth.signOut()">Logout</button><button class="b gh" onclick="hideDialog()">Chiudi</button></div></div>`);
+}
+function saveLoyalty(file){
+  if(!file)return;
+  const img=new Image(),u=URL.createObjectURL(file);
+  img.onload=()=>{const m=1600,k=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);
+    if(!LS.set('loyaltyImg',c.toDataURL('image/jpeg',.9)))alert('Impossibile salvare l\'immagine.');hideDialog();openSettings();};
+  img.onerror=()=>{URL.revokeObjectURL(u);alert('Immagine non valida.');};
+  img.src=u;
+}
+function delLoyalty(){if(!confirm('Rimuovere la scheda fedeltà?'))return;try{localStorage.removeItem('loyaltyImg')}catch{}hideDialog();openSettings();}
+function showLoyalty(){const d=LS.get('loyaltyImg');if(!d)return alert('Nessuna scheda fedeltà caricata. Aggiungila da ⚙️ Configurazione.');hideDialog();$('loyaltyImg').src=d;$('loyaltyModal').classList.add('open');}
+function hideLoyalty(){$('loyaltyModal').classList.remove('open');$('loyaltyImg').src='';}
 async function reload(){
   const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);
   S.lists=l.data||[];
@@ -255,8 +300,9 @@ function vPick(){
   }
   $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${FLAT?'':expBar('pick')}${body}`;
 }
-async function toggleItem(pid){const ex=S.items.find(i=>i.product_id===pid);if(ex){await sb.from('list_items').delete().eq('id',ex.id);}else{await sb.from('list_items').insert({list_id:S.listId,product_id:pid,quantity:1,status:'to_buy'});}reload();}
-async function changeQty(pid,delta){const item=S.items.find(i=>i.product_id===pid);const current=item?Number(item.quantity||1):1;const next=Math.max(1,current+delta);if(!item){await sb.from('list_items').insert({list_id:S.listId,product_id:pid,quantity:next,status:'to_buy'});}else{await sb.from('list_items').update({quantity:next}).eq('id',item.id);}reload();}
+function dbFail(r){if(r&&r.error){alert(r.error.message);reload();}}
+function toggleItem(pid){const ex=S.items.find(i=>i.product_id===pid);if(ex){S.items=S.items.filter(i=>i!==ex);render();sb.from('list_items').delete().eq('id',ex.id).then(dbFail);}else{const row={id:crypto.randomUUID(),list_id:S.listId,product_id:pid,quantity:1,status:'to_buy'};S.items=[...S.items,row];render();sb.from('list_items').insert(row).then(dbFail);}}
+function changeQty(pid,delta){const item=S.items.find(i=>i.product_id===pid);const current=item?Number(item.quantity||1):1;const next=Math.max(1,current+delta);if(!item){const row={id:crypto.randomUUID(),list_id:S.listId,product_id:pid,quantity:next,status:'to_buy'};S.items=[...S.items,row];render();sb.from('list_items').insert(row).then(dbFail);}else{item.quantity=next;render();sb.from('list_items').update({quantity:next}).eq('id',item.id).then(dbFail);}}
 
 /* ---- spesa ---- */
 function vShop(){
@@ -290,7 +336,7 @@ function vShop(){
   }
   $('view').innerHTML=html;
 }
-async function buy(id,v){await sb.from('list_items').update({status:v?'purchased':'to_buy',updated_at:new Date().toISOString()}).eq('id',id);reload();}
+function buy(id,v){const it=S.items.find(i=>i.id===id);if(it)it.status=v?'purchased':'to_buy';render();sb.from('list_items').update({status:v?'purchased':'to_buy',updated_at:new Date().toISOString()}).eq('id',id).then(dbFail);}
 async function closeCart(){if(!confirm('Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.')) return;await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');reload();}
 function openPhotoModal(url){$('photoModalImg').src=url;$('photoModal').classList.add('open');}
 function hidePhotoModal(){$('photoModal').classList.remove('open');$('photoModalImg').src='';}
