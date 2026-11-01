@@ -59,6 +59,9 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .item-card{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
 .product-name{font-weight:600;line-height:1.3;word-break:break-word;color:var(--tx)}
 .product-meta{font-size:12px;color:var(--mu);margin-top:2px}
+.shop-view .product-name{font-size:18px}
+.shop-view .product-meta{font-size:14px}
+.shop-view h2.cath{font-size:15px}
 .wide-btn{width:100%}
 .list-avatar{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;background:var(--card2);border:1px solid var(--bd);font-size:18px;flex:none}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
@@ -80,7 +83,7 @@ header .who{font-size:11px;color:var(--mu);font-weight:400;display:block;overflo
 .setrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}
 .modal.card-full{background:#fff;padding:0}
 .modal.card-full img{max-width:100%;max-height:100vh;width:100%;object-fit:contain;border-radius:0;box-shadow:none;background:#fff}
-@media (max-width:420px){.card{padding:8px 10px}.qtybox{padding:2px 4px}.list-actions{flex-direction:column}}
+@media (max-width:420px){.card{padding:8px 10px}.qtybox{padding:2px 4px}.list-actions{flex-direction:column}.shop-view .product-name{font-size:17px}}
 </style>
 </head>
 <body>
@@ -120,7 +123,7 @@ header .who{font-size:11px;color:var(--mu);font-weight:400;display:block;overflo
 const SUPABASE_URL='https://tdagxuyvckiageppiwbh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-let S={cats:[],prods:[],lists:[],items:[],page:'lists',listId:localStorage.getItem('listId'),listName:''};
+let S={cats:[],prods:[],lists:[],items:[],page:'lists',listId:localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
 let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch{COL={}}
 let filterText='';
 let FLAT=localStorage.getItem('flatView')==='1';
@@ -160,7 +163,7 @@ function restoreFocus(st){
 }
 
 async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
-sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;S.user=session?.user||null;$('who').textContent=S.user?'👤 '+(S.user.user_metadata?.name||S.user.email||''):'';if(session)reload();});
+sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;S.user=session?.user||null;$('who').textContent=S.user?'👤 '+(S.user.user_metadata?.name||S.user.email||''):'';if(session){loadLoyalty();reload();}else S.loyaltyImg=null;});
 
 /* ---- impostazioni ---- */
 const LS={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v);return true}catch{return false}}};
@@ -178,7 +181,7 @@ applyWake();
 function setTheme(v){LS.set('theme',v);applyTheme();}
 function setAwake(on){LS.set('keepAwake',on?'1':'0');applyWake();if(on&&!('wakeLock' in navigator))alert('Il browser non supporta lo schermo sempre attivo.');}
 function openSettings(){
-  const light=LS.get('theme')==='light',awake=LS.get('keepAwake')==='1',has=!!LS.get('loyaltyImg');
+  const light=LS.get('theme')==='light',awake=LS.get('keepAwake')==='1',has=!!S.loyaltyImg;
   showDialog(`<div class="modal-panel"><h3>Configurazione</h3>
   <div class="mu">${esc(S.user?.email||'')}</div>
   <div class="setrow"><span>Modalità</span><select id="setTheme" style="width:auto" onchange="setTheme(this.value)"><option value="dark" ${light?'':'selected'}>Scura</option><option value="light" ${light?'selected':''}>Chiara</option></select></div>
@@ -187,16 +190,37 @@ function openSettings(){
   <div class="row"><label class="b gh camera-label" for="loyaltyFile">${has?'📷 Sostituisci':'📷 Carica immagine'}</label><input id="loyaltyFile" type="file" accept="image/*" style="display:none" onchange="saveLoyalty(this.files[0])">${has?'<button class="b gh" onclick="showLoyalty()">Mostra</button><button class="b rd" onclick="delLoyalty()">🗑</button>':''}</div>
   <div class="modal-actions"><button class="b rd" onclick="hideDialog();sb.auth.signOut()">Logout</button><button class="b gh" onclick="hideDialog()">Chiudi</button></div></div>`);
 }
-function saveLoyalty(file){
+async function saveLoyalty(file){
   if(!file)return;
-  const img=new Image(),u=URL.createObjectURL(file);
-  img.onload=()=>{const m=1600,k=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);
-    if(!LS.set('loyaltyImg',c.toDataURL('image/jpeg',.9)))alert('Impossibile salvare l\'immagine.');hideDialog();openSettings();};
-  img.onerror=()=>{URL.revokeObjectURL(u);alert('Immagine non valida.');};
-  img.src=u;
+  if(!S.user)return alert('Accedi per salvare la scheda fedeltà.');
+  try{
+    const imageData=await new Promise((resolve,reject)=>{
+      const img=new Image(),u=URL.createObjectURL(file);
+      img.onload=()=>{try{const m=1600,k=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const ctx=c.getContext('2d');if(!ctx)throw new Error('Impossibile elaborare l’immagine.');ctx.drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.9));}catch(e){reject(e);}finally{URL.revokeObjectURL(u);}};
+      img.onerror=()=>{URL.revokeObjectURL(u);reject(new Error('Immagine non valida.'));};
+      img.src=u;
+    });
+    const {error}=await sb.from('loyalty_cards').upsert({user_id:S.user.id,image_data:imageData,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    if(error)throw error;
+    S.loyaltyImg=imageData;
+    hideDialog();
+    openSettings();
+  }catch(e){alert(e.message||'Errore durante il salvataggio della scheda fedeltà.');}
 }
-function delLoyalty(){if(!confirm('Rimuovere la scheda fedeltà?'))return;try{localStorage.removeItem('loyaltyImg')}catch{}hideDialog();openSettings();}
-function showLoyalty(){const d=LS.get('loyaltyImg');if(!d)return alert('Nessuna scheda fedeltà caricata. Aggiungila da ⚙️ Configurazione.');hideDialog();$('loyaltyImg').src=d;$('loyaltyModal').classList.add('open');}
+async function loadLoyalty(){
+  if(!S.user)return;
+  const {data,error}=await sb.from('loyalty_cards').select('image_data').eq('user_id',S.user.id).maybeSingle();
+  if(error){alert(`Errore durante il caricamento della scheda fedeltà: ${error.message}`);return;}
+  if(data?.image_data){S.loyaltyImg=data.image_data;return;}
+  const legacy=LS.get('loyaltyImg');
+  if(!legacy){S.loyaltyImg=null;return;}
+  const {error:saveError}=await sb.from('loyalty_cards').upsert({user_id:S.user.id,image_data:legacy},{onConflict:'user_id'});
+  if(saveError){S.loyaltyImg=legacy;alert(`Impossibile trasferire la scheda fedeltà nel database: ${saveError.message}`);return;}
+  S.loyaltyImg=legacy;
+  try{localStorage.removeItem('loyaltyImg');}catch{}
+}
+async function delLoyalty(){if(!confirm('Rimuovere la scheda fedeltà?'))return;const {error}=await sb.from('loyalty_cards').delete().eq('user_id',S.user.id);if(error)return alert(`Errore durante la rimozione della scheda fedeltà: ${error.message}`);S.loyaltyImg=null;try{localStorage.removeItem('loyaltyImg');}catch{}hideDialog();openSettings();}
+function showLoyalty(){const d=S.loyaltyImg;if(!d)return alert('Nessuna scheda fedeltà caricata. Aggiungila da ⚙️ Configurazione.');hideDialog();$('loyaltyImg').src=d;$('loyaltyModal').classList.add('open');}
 function hideLoyalty(){$('loyaltyModal').classList.remove('open');$('loyaltyImg').src='';}
 async function reload(){
   const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);
@@ -334,7 +358,7 @@ function vShop(){
       }
     }
   }
-  $('view').innerHTML=html;
+  $('view').innerHTML=`<div class="shop-view">${html}</div>`;
 }
 function buy(id,v){const it=S.items.find(i=>i.id===id);if(it)it.status=v?'purchased':'to_buy';render();sb.from('list_items').update({status:v?'purchased':'to_buy',updated_at:new Date().toISOString()}).eq('id',id).then(dbFail);}
 async function closeCart(){if(!confirm('Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.')) return;await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');reload();}

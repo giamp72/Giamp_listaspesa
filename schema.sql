@@ -31,6 +31,12 @@ create table if not exists list_items (
   unique (list_id, product_id)
 );
 
+create table if not exists loyalty_cards (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  image_data text not null,
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists idx_products_category_id on products(category_id);
 create index if not exists idx_list_items_list_id on list_items(list_id);
 create index if not exists idx_list_items_status on list_items(status);
@@ -39,11 +45,13 @@ alter table categories enable row level security;
 alter table products enable row level security;
 alter table shopping_lists enable row level security;
 alter table list_items enable row level security;
+alter table loyalty_cards enable row level security;
 
 drop policy if exists "auth all categories" on categories;
 drop policy if exists "auth all products" on products;
 drop policy if exists "auth all shopping_lists" on shopping_lists;
 drop policy if exists "auth all list_items" on list_items;
+drop policy if exists "users manage own loyalty card" on loyalty_cards;
 
 create policy "auth all categories"
 on categories
@@ -72,6 +80,15 @@ for all
 to authenticated
 using (true)
 with check (true);
+
+create policy "users manage own loyalty card"
+on loyalty_cards
+for all
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+grant select, insert, update, delete on table loyalty_cards to authenticated;
 
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)
