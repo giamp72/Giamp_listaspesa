@@ -63,6 +63,8 @@ img.th{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#22
 .shop-view .product-meta{font-size:14px}
 .shop-view h2.cath{font-size:15px}
 .wide-btn{width:100%}
+.pick-add-btn{position:fixed;left:50%;bottom:calc(68px + env(safe-area-inset-bottom));transform:translateX(-50%);width:calc(100% - 32px);max-width:728px;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:19}
+.pick-add-spacer{height:56px}
 .list-avatar{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;background:var(--card2);border:1px solid var(--bd);font-size:18px;flex:none}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 .modal.open{display:flex}
@@ -322,7 +324,30 @@ function vPick(){
       return catHead('pick',c.id,c.name,nSel?`${nSel}/${ps.length}`:ps.length)+(isCol(colKey('pick',c.id))?'':ps.map(p=>pickRow(p,false)).join(''));
     }).join('')||'<div class="card">Nessun prodotto trovato.</div>';
   }
-  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${FLAT?'':expBar('pick')}${body}`;
+  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${FLAT?'':expBar('pick')}${body}<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">＋ Aggiungi prodotto</button>`;
+}
+function openAddProductModal(){
+  if(!S.listId)return alert('Seleziona una lista prima di aggiungere un prodotto.');
+  const cats=orderedCats();
+  if(!cats.length)return alert('Aggiungi prima una categoria dalla scheda Categorie.');
+  showDialog(`<form class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="addProductTitle" onsubmit="event.preventDefault(); addProductFromPick()"><h3 id="addProductTitle">Aggiungi prodotto</h3><label for="pickProductDesc">Descrizione</label><input id="pickProductDesc" placeholder="Descrizione prodotto" required><label for="pickProductCat">Categoria</label><select id="pickProductCat" required>${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="modal-actions"><button type="button" class="b gh" onclick="hideDialog()">Annulla</button><button id="pickProductSubmit" type="submit" class="b">Aggiungi</button></div></form>`);
+  $('pickProductDesc').focus();
+}
+async function addProductFromPick(){
+  const description=$('pickProductDesc').value.trim(),categoryId=$('pickProductCat').value;
+  if(!description||!categoryId)return alert('Inserisci descrizione e categoria.');
+  const button=$('pickProductSubmit');
+  button.disabled=true;
+  try{
+    const {error}=await sb.from('products').insert({description,category_id:categoryId,image_url:null,list_id:S.listId});
+    if(error)throw error;
+    hideDialog();
+    filterText='';
+    await reload();
+  }catch(e){
+    alert(e.message||'Errore durante l’aggiunta del prodotto.');
+    if($('pickProductSubmit'))$('pickProductSubmit').disabled=false;
+  }
 }
 function dbFail(r){if(r&&r.error){alert(r.error.message);reload();}}
 function toggleItem(pid){const ex=S.items.find(i=>i.product_id===pid);if(ex){S.items=S.items.filter(i=>i!==ex);render();sb.from('list_items').delete().eq('id',ex.id).then(dbFail);}else{const row={id:crypto.randomUUID(),list_id:S.listId,product_id:pid,quantity:1,status:'to_buy'};S.items=[...S.items,row];render();sb.from('list_items').insert(row).then(dbFail);}}
