@@ -172,7 +172,7 @@ const TEXT={
     saveCardError:'Errore durante il salvataggio della scheda fedeltà.',loadCardError:'Errore durante il caricamento della scheda fedeltà:',
     migrateCardError:'Impossibile trasferire la scheda fedeltà nel database:',removeCardConfirm:'Rimuovere la scheda fedeltà?',
     removeCardError:'Errore durante la rimozione della scheda fedeltà:',noCard:'Nessuna scheda fedeltà caricata. Aggiungila dalle Impostazioni.',
-    exportJson:'Esporta JSON',importJson:'Importa JSON',closeButton:'Chiudi',downloadJson:'Scarica JSON',cancel:'Annulla',
+    exportJson:'Esporta lista',importJson:'Importa lista',closeButton:'Chiudi',downloadJson:'Scarica JSON',cancel:'Annulla',
     importWarning:'ATTENZIONE:',importWarningDetail:'L’importazione SOVRASCRIVE TUTTI i dati di categorie e prodotti della lista attiva. I dati attuali verranno persi.',
     importOverwrite:'Importa e sovrascrivi',selectListExport:'Seleziona una lista prima di esportare/importare.',
     exportDescription:'Verrà scaricato un file con il nome della lista attiva. Il file contiene solo categorie e prodotti, incluse le immagini quando presenti.',
@@ -187,7 +187,7 @@ const TEXT={
     saveProductValidation:'Inserisci descrizione e categoria.',photoUploadError:'Errore durante il caricamento della foto.',
     photoRemoveError:'Errore durante la rimozione della foto.',productSaveError:'Errore durante il salvataggio del prodotto.',
     noProductsBuy:'Nessun prodotto da acquistare.',addProductFirst:'Aggiungi prima una categoria dalla scheda Categorie.',
-    selectListFirst:'Seleziona una lista prima di aggiungere un prodotto.',category:'Categoria',quantity:'Quantità:',
+    selectListFirst:'Seleziona una lista prima di aggiungere un prodotto.',category:'Categoria',quantity:'Quantità:',purchased:'Acquistati',
     addProductError:'Errore durante l’aggiunta del prodotto.',cartRemaining:'Mancano {remaining} prodotti su {total}',
     closeCart:'Chiudi carrello',closeCartConfirm:'Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.',
     noListSelected:'Nessuna lista selezionata.',loginError:'Controlla la mail per confermare (se richiesto).'
@@ -206,7 +206,7 @@ const TEXT={
     saveCardError:'Error saving the loyalty card.',loadCardError:'Error loading the loyalty card:',
     migrateCardError:'Unable to transfer the loyalty card to the database:',removeCardConfirm:'Remove the loyalty card?',
     removeCardError:'Error removing the loyalty card:',noCard:'No loyalty card found. Add one in Settings.',
-    exportJson:'Export JSON',importJson:'Import JSON',closeButton:'Close',downloadJson:'Download JSON',cancel:'Cancel',
+    exportJson:'Export list',importJson:'Import list',closeButton:'Close',downloadJson:'Download JSON',cancel:'Cancel',
     importWarning:'WARNING:',importWarningDetail:'Importing OVERWRITES ALL categories and products in the active list. Existing data will be lost.',
     importOverwrite:'Import and overwrite',selectListExport:'Select a list before exporting or importing.',
     exportDescription:'A file named after the active list will be downloaded. It contains only categories and products, including images when available.',
@@ -221,7 +221,7 @@ const TEXT={
     saveProductValidation:'Enter a description and choose a category.',photoUploadError:'Error uploading the photo.',
     photoRemoveError:'Error removing the photo.',productSaveError:'Error saving the product.',
     noProductsBuy:'No products to buy.',addProductFirst:'Add a category from the Categories tab first.',
-    selectListFirst:'Select a list before adding a product.',category:'Category',quantity:'Quantity:',
+    selectListFirst:'Select a list before adding a product.',category:'Category',quantity:'Quantity:',purchased:'Purchased',
     addProductError:'Error adding the product.',cartRemaining:'{remaining} of {total} items remaining',
     closeCart:'Finish shopping',closeCartConfirm:'Finish shopping? Purchased items will be removed from the list.',
     noListSelected:'No list selected.',loginError:'Check your email to confirm your account (if required).'
@@ -522,23 +522,21 @@ function vShop(){
   const done=bought.length;
   const cats=orderedCats();
   let html=`<div class="card col"><b>${t('cartRemaining',{remaining:toBuy.length,total:tot})}</b><div class="bar"><i style="width:${tot?(done/tot)*100:0}%"></i></div><button class="b ok wide-btn" onclick="closeCart()">${icon('cart')}${t('closeCart')}</button></div>`;
-  html+=filterBox('shopFilter');
-  html+=expBar('shop');
   if(toBuy.length){
     html+=cats.map(c=>{
-      const its=toBuy.filter(i=>prod(i.product_id)?.category_id===c.id && matchesFilter(filterText,prod(i.product_id)));
+      const its=toBuy.filter(i=>prod(i.product_id)?.category_id===c.id);
       if(!its.length) return '';
-      return catHead('shop',c.id,c.name,its.length)+(isCol(colKey('shop',c.id))?'':its.map(i=>{const p=prod(i.product_id);return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">${t('quantity')} ${i.quantity||1}</div></div></div>`;}).join(''));
+      return catHead('shop',c.id,c.name,its.length)+(isCol(colKey('shop',c.id))?'':its.map(i=>{const p=prod(i.product_id);return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div><div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">${t('quantity')} ${i.quantity||1}</div></div>${p.image_url?thumb(p):''}</div>`;}).join(''));
     }).join('');
   } else {
     html+=`<div class="card">${t('noProductsBuy')}</div>`;
   }
   if(bought.length){
-    const bv=bought.filter(i=>matchesFilter(filterText,prod(i.product_id)));
+    const bv=bought.filter(i=>prod(i.product_id));
     if(bv.length){
-      html+=catHead('shop','bought','Acquistati',bv.length);
+      html+=catHead('shop','bought',t('purchased'),bv.length);
       if(!isCol(colKey('shop','bought'))){
-        html+=cats.map(c=>bv.filter(i=>prod(i.product_id)?.category_id===c.id).map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">${t('quantity')} ${i.quantity||1}</div></div></div>`;}).join('')).join('');
+        html+=cats.map(c=>bv.filter(i=>prod(i.product_id)?.category_id===c.id).map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div><div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">${t('quantity')} ${i.quantity||1}</div></div>${p.image_url?thumb(p):''}</div>`;}).join('')).join('');
       }
     }
   }
