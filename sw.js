@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lista-spesa-v1';
+const CACHE_NAME = 'lista-spesa-v2';
 const APP_SHELL = [
   new URL('./index.html', self.registration.scope).href,
   new URL('./manifest.webmanifest', self.registration.scope).href,

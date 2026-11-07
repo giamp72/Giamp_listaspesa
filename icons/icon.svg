@@ -1,8 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#000"/>
-  <path d="M143 183h226l-22 221H165z" fill="#f1f1f1"/>
-  <path d="m190 183 66-91 66 91" fill="none" stroke="#f1f1f1" stroke-linecap="round" stroke-linejoin="round" stroke-width="28"/>
-  <path d="M207 240v92m49-92v92m49-92v92" fill="none" stroke="#111" stroke-linecap="round" stroke-width="18"/>
-  <circle cx="190" cy="438" r="22" fill="#f1f1f1"/>
-  <circle cx="322" cy="438" r="22" fill="#f1f1f1"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#36c8ff"/>
+      <stop offset="1" stop-color="#0875f5"/>
+    </linearGradient>
+    <linearGradient id="basket" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#dcecff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="#07182f"/>
+  <circle cx="394" cy="112" r="118" fill="#12396b"/>
+  <path d="M92 137h42l43 203a33 33 0 0 0 32 26h153a33 33 0 0 0 32-25l33-139H158" fill="none" stroke="url(#basket)" stroke-linecap="round" stroke-linejoin="round" stroke-width="27"/>
+  <path d="M193 222h194l-20 87a12 12 0 0 1-12 9H215a12 12 0 0 1-12-10Z" fill="url(#bg)"/>
+  <path d="M247 238v59m48-59v59m48-59v59" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="11" opacity=".92"/>
+  <circle cx="220" cy="414" r="25" fill="#fff"/>
+  <circle cx="363" cy="414" r="25" fill="#fff"/>
+  <circle cx="220" cy="414" r="9" fill="#0875f5"/>
+  <circle cx="363" cy="414" r="9" fill="#0875f5"/>
 </svg>

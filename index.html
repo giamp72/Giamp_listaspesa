@@ -100,40 +100,51 @@ header .who{display:block;overflow:hidden;color:var(--mu);font-size:12px;font-we
 @supports not (backdrop-filter:blur(1px)){header,nav,.modal-panel{background:var(--card)}}
 @media (max-width:420px){main{padding-right:12px;padding-left:12px}.card{padding:11px 12px}.qtybox{gap:5px}.list-actions{flex-direction:column}.shop-view .product-name{font-size:17px}.pick-add-btn{width:calc(100% - 28px)}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+.icon{display:inline-block;width:19px;height:19px;flex:none;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.camera-label{gap:7px}
+.password-field{position:relative;width:100%}
+.password-field input{padding-right:52px}
+.password-toggle{position:absolute;top:50%;right:5px;display:grid;width:40px;height:40px;transform:translateY(-50%);place-items:center;border:0;border-radius:12px;background:transparent;color:var(--mu);cursor:pointer}
+.password-toggle:hover{background:var(--card2);color:var(--accent)}
+.password-toggle .icon{width:20px;height:20px}
+.app-footer{padding:4px 16px 16px;color:var(--mu);font-size:11px;text-align:center}
+.app-footer a{color:inherit;text-decoration:none}
+.app-footer a:hover{color:var(--accent)}
 </style>
 </head>
 <body>
 <div id="offlineNotice" class="mu" role="status" hidden>Sei offline: puoi aprire l'app, ma per sincronizzare i dati serve internet.</div>
 <div id="login" hidden>
   <div class="card col">
-    <h1>🛒 Lista della Spesa</h1>
-    <input id="em" type="email" placeholder="Email">
-    <input id="pw" type="password" placeholder="Password">
-    <button class="b" onclick="auth(false)">Accedi</button>
-    <button class="b gh" onclick="auth(true)">Registrati</button>
+    <h1><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg> <span data-i18n="appName">Lista della Spesa</span></h1>
+    <input id="em" type="email" placeholder="Email" data-i18n-placeholder="email">
+    <div class="password-field"><input id="pw" type="password" placeholder="Password" data-i18n-placeholder="password"><button id="togglePassword" class="password-toggle" type="button" onclick="togglePasswordVisibility()" aria-label="Mostra password" title="Mostra password" data-i18n-label="showPassword"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <button class="b" onclick="auth(false)" data-i18n="signIn">Accedi</button>
+    <button class="b gh" onclick="auth(true)" data-i18n="signUp">Registrati</button>
     <div id="lerr" class="mu"></div>
   </div>
 </div>
 <div id="app" hidden>
   <header>
-    <div class="hl"><h1 id="title">🛒 Spesa</h1><span class="who" id="who"></span></div>
+    <div class="hl"><h1 id="title"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></svg> Spesa</h1><span class="who" id="who"></span></div>
     <div class="small-actions">
-      <button class="b gh" onclick="showLoyalty()" title="Scheda fedeltà">💳</button>
-      <button class="b gh" onclick="reload()" title="Aggiorna">🔄</button>
-      <button class="b gh" onclick="openSettings()" title="Impostazioni">⚙️</button>
+      <button class="b gh" onclick="showLoyalty()" title="Scheda fedeltà" aria-label="Scheda fedeltà" data-i18n-label="loyaltyCard"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg></button>
+      <button class="b gh" onclick="reload()" title="Aggiorna" aria-label="Aggiorna" data-i18n-label="refresh"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.4-3"/></svg></button>
+      <button class="b gh" onclick="openSettings()" title="Impostazioni" aria-label="Impostazioni" data-i18n-label="settings"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.7 1l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.7-1l-1.7.7-1.4-2.4 1.4-1.1a8 8 0 0 1 0-2l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.7-1l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.7 1l1.7-.7 1.4 2.4-1.4 1.1a8 8 0 0 1 0 2Z" transform="translate(-1 -1) scale(1.08)"/></svg></button>
     </div>
   </header>
   <main id="view"></main>
   <nav>
-    <button data-p="lists" onclick="go('lists')"><span>📋</span>Liste</button>
-    <button data-p="cats" onclick="go('cats')"><span>🏷️</span>Categorie</button>
-    <button data-p="prods" onclick="go('prods')"><span>📦</span>Prodotti</button>
-    <button data-p="pick" onclick="go('pick')"><span>➕</span>Lista</button>
-    <button data-p="shop" onclick="go('shop')"><span>🛍️</span>Spesa</button>
+    <button data-p="lists" onclick="go('lists')" data-i18n="navLists"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 3v3m8-3v3M8 10h8m-8 4h8m-8 4h5"/></svg>Liste</button>
+    <button data-p="cats" onclick="go('cats')" data-i18n="navCategories"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.6 13.4 13 21l-10-10V3h8l9.6 9.6a.6.6 0 0 1 0 .8Z"/><circle cx="7.5" cy="7.5" r="1"/></svg>Categorie</button>
+    <button data-p="prods" onclick="go('prods')" data-i18n="navProducts"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg>Prodotti</button>
+    <button data-p="pick" onclick="go('pick')" data-i18n="navPick"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>Lista</button>
+    <button data-p="shop" onclick="go('shop')" data-i18n="navShop"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 9h18l-2 12H5L3 9Z"/><path d="M8 9a4 4 0 0 1 8 0M9 13v4m6-4v4"/></svg>Spesa</button>
   </nav>
+  <footer class="app-footer"><span data-i18n="developedBy">Developed by</span> <a href="mailto:giamp72@gmail.com">giamp72@gmail.com</a></footer>
 </div>
-<div id="photoModal" class="modal" onclick="closePhotoModal(event)"><button class="close" aria-label="Chiudi" onclick="hidePhotoModal()">×</button><img id="photoModalImg" alt="Foto prodotto ingrandita"></div>
-<div id="loyaltyModal" class="modal card-full" onclick="hideLoyalty()"><button class="close" aria-label="Chiudi" onclick="hideLoyalty()">×</button><img id="loyaltyImg" alt="Scheda fedeltà"></div>
+<div id="photoModal" class="modal" onclick="closePhotoModal(event)"><button class="close" aria-label="Chiudi" data-i18n-label="close" onclick="hidePhotoModal()">×</button><img id="photoModalImg" alt="Foto prodotto ingrandita" data-i18n-alt="productPhotoAlt"></div>
+<div id="loyaltyModal" class="modal card-full" onclick="hideLoyalty()"><button class="close" aria-label="Chiudi" data-i18n-label="close" onclick="hideLoyalty()">×</button><img id="loyaltyImg" alt="Scheda fedeltà" data-i18n-alt="loyaltyCardAlt"></div>
 <div id="overlay" class="backdrop" onclick="closeDialog(event)"></div>
 <div id="dialogHost" style="position:fixed;inset:0;z-index:56;display:none;align-items:center;justify-content:center;padding:16px;"></div>
 <script>
@@ -145,6 +156,122 @@ let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch
 let filterText='';
 let FLAT=localStorage.getItem('flatView')==='1';
 const $=id=>document.getElementById(id);
+let LANGUAGE=localStorage.getItem('language')==='en'?'en':'it';
+const TEXT={
+  it:{
+    appName:'Lista della Spesa',appDescription:'Gestisci le tue liste della spesa, ovunque ti trovi.',productPhotoAlt:'Foto prodotto ingrandita',loyaltyCardAlt:'Scheda fedeltà',email:'Email',password:'Password',showPassword:'Mostra password',hidePassword:'Nascondi password',
+    signIn:'Accedi',signUp:'Registrati',navLists:'Liste',navCategories:'Categorie',navProducts:'Prodotti',navPick:'Lista',navShop:'Spesa',
+    loyaltyCard:'Scheda fedeltà',refresh:'Aggiorna',settings:'Impostazioni',close:'Chiudi',developedBy:'Developed by',
+    offline:'Sei offline: puoi aprire l’app, ma per sincronizzare i dati serve internet.',appTitle:'Spesa',
+    expandAll:'Espandi tutto',collapseAll:'Comprimi tutto',groupByCategory:'Raggruppa per categoria',flatList:'Elenco A-Z senza categorie',
+    unsupportedWake:'Il browser non supporta lo schermo sempre attivo.',configuration:'Configurazione',installDevice:'Installa sul dispositivo',
+    install:'Installa',iosInstall:'Condividi → Aggiungi alla schermata Home',browserInstall:'Usa il menu del browser per installarla',
+    language:'Lingua',italian:'Italiano',english:'Inglese',mode:'Modalità',dark:'Scura',light:'Chiara',keepAwake:'Schermo sempre attivo',
+    loyaltyBarcode:'Scheda fedeltà (codice a barre)',replace:'Sostituisci',uploadImage:'Carica immagine',show:'Mostra',logout:'Esci',
+    signInToSaveCard:'Accedi per salvare la scheda fedeltà.',imageProcessing:'Impossibile elaborare l’immagine.',invalidImage:'Immagine non valida.',
+    saveCardError:'Errore durante il salvataggio della scheda fedeltà.',loadCardError:'Errore durante il caricamento della scheda fedeltà:',
+    migrateCardError:'Impossibile trasferire la scheda fedeltà nel database:',removeCardConfirm:'Rimuovere la scheda fedeltà?',
+    removeCardError:'Errore durante la rimozione della scheda fedeltà:',noCard:'Nessuna scheda fedeltà caricata. Aggiungila dalle Impostazioni.',
+    exportJson:'Esporta JSON',importJson:'Importa JSON',closeButton:'Chiudi',downloadJson:'Scarica JSON',cancel:'Annulla',
+    importWarning:'ATTENZIONE:',importWarningDetail:'L’importazione SOVRASCRIVE TUTTI i dati di categorie e prodotti della lista attiva. I dati attuali verranno persi.',
+    importOverwrite:'Importa e sovrascrivi',selectListExport:'Seleziona una lista prima di esportare/importare.',
+    exportDescription:'Verrà scaricato un file con il nome della lista attiva. Il file contiene solo categorie e prodotti, incluse le immagini quando presenti.',
+    chooseJson:'Seleziona un file JSON da importare.',confirmImport:'ATTENZIONE: questa operazione cancellerà tutte le categorie e i prodotti attuali della lista selezionata. Procedere?',
+    invalidJson:'Il file non è un JSON valido.',invalidJsonFormat:'Formato JSON non valido.',noList:'Crea prima una lista.',
+    newList:'Nuova lista (es. Esselunga)',create:'Crea',exportImportDisabled:'Seleziona una lista prima di esportare/importare.',
+    deleteListConfirm:'Eliminare la lista?',newCategory:'Nuova categoria',add:'Aggiungi',categoryOrder:'Ordine di visualizzazione nella spesa.',
+    rename:'Rinomina',delete:'Elimina',newName:'Nuovo nome:',categoryInUse:'Categoria in uso da dei prodotti.',moveUp:'Sposta su',moveDown:'Sposta giù',deleteCategoryConfirm:'Eliminare la categoria?',
+    searchProduct:'Cerca prodotto...',noProducts:'Nessun prodotto trovato.',description:'Descrizione',productDescription:'Descrizione prodotto',
+    photo:'Foto',changePhoto:'Cambia foto',removePhoto:'Rimuovi foto',removePhotoConfirm:'Rimuovere la foto del prodotto?',deleteProductConfirm:'Eliminare il prodotto?',
+    addProduct:'Aggiungi prodotto',editProduct:'Modifica prodotto',save:'Salva',addProductValidation:'Inserisci descrizione e categoria',
+    saveProductValidation:'Inserisci descrizione e categoria.',photoUploadError:'Errore durante il caricamento della foto.',
+    photoRemoveError:'Errore durante la rimozione della foto.',productSaveError:'Errore durante il salvataggio del prodotto.',
+    noProductsBuy:'Nessun prodotto da acquistare.',addProductFirst:'Aggiungi prima una categoria dalla scheda Categorie.',
+    selectListFirst:'Seleziona una lista prima di aggiungere un prodotto.',category:'Categoria',quantity:'Quantità:',
+    addProductError:'Errore durante l’aggiunta del prodotto.',cartRemaining:'Mancano {remaining} prodotti su {total}',
+    closeCart:'Chiudi carrello',closeCartConfirm:'Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.',
+    noListSelected:'Nessuna lista selezionata.',loginError:'Controlla la mail per confermare (se richiesto).'
+  },
+  en:{
+    appName:'Shopping List',appDescription:'Manage your shopping lists wherever you are.',productPhotoAlt:'Enlarged product photo',loyaltyCardAlt:'Loyalty card',email:'Email',password:'Password',showPassword:'Show password',hidePassword:'Hide password',
+    signIn:'Sign in',signUp:'Sign up',navLists:'Lists',navCategories:'Categories',navProducts:'Products',navPick:'Select',navShop:'Shopping',
+    loyaltyCard:'Loyalty card',refresh:'Refresh',settings:'Settings',close:'Close',developedBy:'Developed by',
+    offline:'You are offline: you can open the app, but internet is required to sync data.',appTitle:'Shopping',
+    expandAll:'Expand all',collapseAll:'Collapse all',groupByCategory:'Group by category',flatList:'A–Z list without categories',
+    unsupportedWake:'Your browser does not support keeping the screen awake.',configuration:'Settings',installDevice:'Install on this device',
+    install:'Install',iosInstall:'Share → Add to Home Screen',browserInstall:'Use your browser menu to install the app',
+    language:'Language',italian:'Italian',english:'English',mode:'Appearance',dark:'Dark',light:'Light',keepAwake:'Keep screen awake',
+    loyaltyBarcode:'Loyalty card (barcode)',replace:'Replace',uploadImage:'Upload image',show:'Show',logout:'Log out',
+    signInToSaveCard:'Sign in to save your loyalty card.',imageProcessing:'Unable to process the image.',invalidImage:'Invalid image.',
+    saveCardError:'Error saving the loyalty card.',loadCardError:'Error loading the loyalty card:',
+    migrateCardError:'Unable to transfer the loyalty card to the database:',removeCardConfirm:'Remove the loyalty card?',
+    removeCardError:'Error removing the loyalty card:',noCard:'No loyalty card found. Add one in Settings.',
+    exportJson:'Export JSON',importJson:'Import JSON',closeButton:'Close',downloadJson:'Download JSON',cancel:'Cancel',
+    importWarning:'WARNING:',importWarningDetail:'Importing OVERWRITES ALL categories and products in the active list. Existing data will be lost.',
+    importOverwrite:'Import and overwrite',selectListExport:'Select a list before exporting or importing.',
+    exportDescription:'A file named after the active list will be downloaded. It contains only categories and products, including images when available.',
+    chooseJson:'Select a JSON file to import.',confirmImport:'WARNING: this will delete all existing categories and products in the selected list. Continue?',
+    invalidJson:'The file is not valid JSON.',invalidJsonFormat:'Invalid JSON format.',noList:'Create a list first.',
+    newList:'New list (e.g. Grocery store)',create:'Create',exportImportDisabled:'Select a list before exporting or importing.',
+    deleteListConfirm:'Delete this list?',newCategory:'New category',add:'Add',categoryOrder:'Display order in the shopping view.',
+    rename:'Rename',delete:'Delete',newName:'New name:',categoryInUse:'Category is in use by products.',moveUp:'Move up',moveDown:'Move down',deleteCategoryConfirm:'Delete this category?',
+    searchProduct:'Search products...',noProducts:'No products found.',description:'Description',productDescription:'Product description',
+    photo:'Photo',changePhoto:'Change photo',removePhoto:'Remove photo',removePhotoConfirm:'Remove the product photo?',deleteProductConfirm:'Delete this product?',
+    addProduct:'Add product',editProduct:'Edit product',save:'Save',addProductValidation:'Enter a description and choose a category',
+    saveProductValidation:'Enter a description and choose a category.',photoUploadError:'Error uploading the photo.',
+    photoRemoveError:'Error removing the photo.',productSaveError:'Error saving the product.',
+    noProductsBuy:'No products to buy.',addProductFirst:'Add a category from the Categories tab first.',
+    selectListFirst:'Select a list before adding a product.',category:'Category',quantity:'Quantity:',
+    addProductError:'Error adding the product.',cartRemaining:'{remaining} of {total} items remaining',
+    closeCart:'Finish shopping',closeCartConfirm:'Finish shopping? Purchased items will be removed from the list.',
+    noListSelected:'No list selected.',loginError:'Check your email to confirm your account (if required).'
+  }
+};
+const t=(key,values={})=>String(TEXT[LANGUAGE][key]??TEXT.it[key]??key).replace(/\{(\w+)\}/g,(_,name)=>values[name]??'');
+const ICONS={
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff:'<path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A10 10 0 0 1 12 5c6.4 0 10 7 10 7a15 15 0 0 1-3.1 3.9M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4-.8"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
+  trash:'<path d="M3 6h18m-2 0-.9 14H5.9L5 6m4 0V4h6v2m-5 4v6m4-6v6"/>',
+  camera:'<path d="M14 4h-4L8 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-4Z"/><circle cx="12" cy="13" r="3"/>',
+  cart:'<path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6"/><circle cx="10" cy="21" r="1"/><circle cx="18" cy="21" r="1"/>'
+};
+const icon=name=>`<svg class="icon" aria-hidden="true" viewBox="0 0 24 24">${ICONS[name]||''}</svg>`;
+function applyLanguage(){
+  document.documentElement.lang=LANGUAGE;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key=el.dataset.i18n,svg=el.querySelector(':scope > svg');
+    el.textContent=t(key);
+    if(svg)el.prepend(svg,' ');
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>el.placeholder=t(el.dataset.i18nPlaceholder));
+  document.querySelectorAll('[data-i18n-label]').forEach(el=>{el.setAttribute('aria-label',t(el.dataset.i18nLabel));if(el.tagName==='BUTTON')el.title=t(el.dataset.i18nLabel);});
+  document.querySelectorAll('[data-i18n-alt]').forEach(el=>el.alt=t(el.dataset.i18nAlt));
+  $('offlineNotice').textContent=t('offline');
+  document.title=t('appName');
+  document.querySelector('meta[name=description]').content=t('appDescription');
+  updatePasswordToggleLabel();
+}
+function setLanguage(language){
+  LANGUAGE=language==='en'?'en':'it';
+  localStorage.setItem('language',LANGUAGE);
+  applyLanguage();
+  if(S.user){render();openSettings();}
+}
+function togglePasswordVisibility(){
+  const input=$('pw');
+  input.type=input.type==='password'?'text':'password';
+  updatePasswordToggleLabel();
+}
+function updatePasswordToggleLabel(){
+  const button=$('togglePassword');
+  if(!button)return;
+  const visible=$('pw').type==='text',label=t(visible?'hidePassword':'showPassword');
+  button.setAttribute('aria-label',label);
+  button.title=label;
+  button.innerHTML=icon(visible?'eyeOff':'eye');
+}
+applyLanguage();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const normalize=s=>String(s||'').toLowerCase().trim();
 const matchesFilter=(text,prod)=>!text || normalize(prod.description).includes(normalize(text));
@@ -159,11 +286,11 @@ function saveCol(){localStorage.setItem('collapsedCats',JSON.stringify(COL));}
 function toggleCat(k){COL[k]=!COL[k];saveCol();render();}
 function setAll(page,collapse){const ids=S.cats.map(c=>c.id);if(page==='shop')ids.push('bought');ids.forEach(id=>{COL[colKey(page,id)]=collapse;});saveCol();render();}
 function catHead(page,id,name,count){const k=colKey(page,id);return `<h2 class="cath" onclick="toggleCat('${k}')"><span class="chev">${isCol(k)?'▸':'▾'}</span><span>${esc(name)}</span><span class="cnt">${count}</span></h2>`;}
-const expBar=page=>`<div class="expbar"><button class="b gh" onclick="setAll('${page}',false)">▾ Espandi tutto</button><button class="b gh" onclick="setAll('${page}',true)">▸ Comprimi tutto</button></div>`;
+const expBar=page=>`<div class="expbar"><button class="b gh" onclick="setAll('${page}',false)">▾ ${t('expandAll')}</button><button class="b gh" onclick="setAll('${page}',true)">▸ ${t('collapseAll')}</button></div>`;
 
 /* ---- vista piatta A-Z ---- */
 function toggleFlat(){FLAT=!FLAT;localStorage.setItem('flatView',FLAT?'1':'0');render();}
-const flatBar=()=>`<div class="expbar"><button class="b gh" onclick="toggleFlat()">${FLAT?'🗂 Raggruppa per categoria':'🔤 Elenco A-Z senza categorie'}</button></div>`;
+const flatBar=()=>`<div class="expbar"><button class="b gh" onclick="toggleFlat()">${FLAT?t('groupByCategory'):t('flatList')}</button></div>`;
 
 /* ---- focus preservato durante il filtro ---- */
 function captureFocus(){
@@ -179,7 +306,7 @@ function restoreFocus(st){
   try{if(st.s!=null)el.setSelectionRange(st.s,st.e);}catch(e){}
 }
 
-async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?'Controlla la mail per confermare (se richiesto).':'')}
+async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?t('loginError'):'')}
 sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;S.user=session?.user||null;$('who').textContent=S.user?'👤 '+(S.user.user_metadata?.name||S.user.email||''):'';if(session){loadLoyalty();reload();}else S.loyaltyImg=null;});
 
 /* ---- impostazioni ---- */
@@ -210,27 +337,28 @@ async function applyWake(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')applyWake();});
 applyWake();
 function setTheme(v){LS.set('theme',v);applyTheme();}
-function setAwake(on){LS.set('keepAwake',on?'1':'0');applyWake();if(on&&!('wakeLock' in navigator))alert('Il browser non supporta lo schermo sempre attivo.');}
+function setAwake(on){LS.set('keepAwake',on?'1':'0');applyWake();if(on&&!('wakeLock' in navigator))alert(t('unsupportedWake'));}
 function openSettings(){
   const light=LS.get('theme')==='light',awake=LS.get('keepAwake')==='1',has=!!S.loyaltyImg;
-  const installRow=!isStandalone()?`<div class="setrow"><span>Installa sul dispositivo</span>${deferredInstallPrompt?'<button class="b gh" onclick="installApp()">Installa</button>':`<span class="mu">${isIos?'Condividi → Aggiungi alla schermata Home':'Usa il menu del browser per installarla'}</span>`}</div>`:'';
-  showDialog(`<div class="modal-panel"><h3>Configurazione</h3>
+  const installRow=!isStandalone()?`<div class="setrow"><span>${t('installDevice')}</span>${deferredInstallPrompt?`<button class="b gh" onclick="installApp()">${t('install')}</button>`:`<span class="mu">${t(isIos?'iosInstall':'browserInstall')}</span>`}</div>`:'';
+  showDialog(`<div class="modal-panel"><h3>${t('configuration')}</h3>
   <div class="mu">${esc(S.user?.email||'')}</div>
   ${installRow}
-  <div class="setrow"><span>Modalità</span><select id="setTheme" style="width:auto" onchange="setTheme(this.value)"><option value="dark" ${light?'':'selected'}>Scura</option><option value="light" ${light?'selected':''}>Chiara</option></select></div>
-  <div class="setrow"><span>Schermo sempre attivo</span><select id="setAwake" style="width:auto" onchange="setAwake(this.value==='1')"><option value="0" ${awake?'':'selected'}>OFF</option><option value="1" ${awake?'selected':''}>ON</option></select></div>
-  <div class="setrow"><span>Scheda fedeltà (codice a barre)</span></div>
-  <div class="row"><label class="b gh camera-label" for="loyaltyFile">${has?'📷 Sostituisci':'📷 Carica immagine'}</label><input id="loyaltyFile" type="file" accept="image/*" style="display:none" onchange="saveLoyalty(this.files[0])">${has?'<button class="b gh" onclick="showLoyalty()">Mostra</button><button class="b rd" onclick="delLoyalty()">🗑</button>':''}</div>
-  <div class="modal-actions"><button class="b rd" onclick="hideDialog();sb.auth.signOut()">Logout</button><button class="b gh" onclick="hideDialog()">Chiudi</button></div></div>`);
+  <div class="setrow"><span>${t('language')}</span><select id="setLanguage" style="width:auto" onchange="setLanguage(this.value)"><option value="it" ${LANGUAGE==='it'?'selected':''}>${t('italian')}</option><option value="en" ${LANGUAGE==='en'?'selected':''}>${t('english')}</option></select></div>
+  <div class="setrow"><span>${t('mode')}</span><select id="setTheme" style="width:auto" onchange="setTheme(this.value)"><option value="dark" ${light?'':'selected'}>${t('dark')}</option><option value="light" ${light?'selected':''}>${t('light')}</option></select></div>
+  <div class="setrow"><span>${t('keepAwake')}</span><select id="setAwake" style="width:auto" onchange="setAwake(this.value==='1')"><option value="0" ${awake?'':'selected'}>OFF</option><option value="1" ${awake?'selected':''}>ON</option></select></div>
+  <div class="setrow"><span>${t('loyaltyBarcode')}</span></div>
+  <div class="row"><label class="b gh camera-label" for="loyaltyFile">${icon('camera')}${has?t('replace'):t('uploadImage')}</label><input id="loyaltyFile" type="file" accept="image/*" style="display:none" onchange="saveLoyalty(this.files[0])">${has?`<button class="b gh" onclick="showLoyalty()">${t('show')}</button><button class="b rd" onclick="delLoyalty()">${icon('trash')}</button>`:''}</div>
+  <div class="modal-actions"><button class="b rd" onclick="hideDialog();sb.auth.signOut()">${t('logout')}</button><button class="b gh" onclick="hideDialog()">${t('closeButton')}</button></div></div>`);
 }
 async function saveLoyalty(file){
   if(!file)return;
-  if(!S.user)return alert('Accedi per salvare la scheda fedeltà.');
+  if(!S.user)return alert(t('signInToSaveCard'));
   try{
     const imageData=await new Promise((resolve,reject)=>{
       const img=new Image(),u=URL.createObjectURL(file);
-      img.onload=()=>{try{const m=1600,k=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const ctx=c.getContext('2d');if(!ctx)throw new Error('Impossibile elaborare l’immagine.');ctx.drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.9));}catch(e){reject(e);}finally{URL.revokeObjectURL(u);}};
-      img.onerror=()=>{URL.revokeObjectURL(u);reject(new Error('Immagine non valida.'));};
+      img.onload=()=>{try{const m=1600,k=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);const ctx=c.getContext('2d');if(!ctx)throw new Error(t('imageProcessing'));ctx.drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.9));}catch(e){reject(e);}finally{URL.revokeObjectURL(u);}};
+      img.onerror=()=>{URL.revokeObjectURL(u);reject(new Error(t('invalidImage')));};
       img.src=u;
     });
     const {error}=await sb.from('loyalty_cards').upsert({user_id:S.user.id,image_data:imageData,updated_at:new Date().toISOString()},{onConflict:'user_id'});
@@ -238,22 +366,22 @@ async function saveLoyalty(file){
     S.loyaltyImg=imageData;
     hideDialog();
     openSettings();
-  }catch(e){alert(e.message||'Errore durante il salvataggio della scheda fedeltà.');}
+  }catch(e){alert(e.message||t('saveCardError'));}
 }
 async function loadLoyalty(){
   if(!S.user)return;
   const {data,error}=await sb.from('loyalty_cards').select('image_data').eq('user_id',S.user.id).maybeSingle();
-  if(error){alert(`Errore durante il caricamento della scheda fedeltà: ${error.message}`);return;}
+  if(error){alert(`${t('loadCardError')} ${error.message}`);return;}
   if(data?.image_data){S.loyaltyImg=data.image_data;return;}
   const legacy=LS.get('loyaltyImg');
   if(!legacy){S.loyaltyImg=null;return;}
   const {error:saveError}=await sb.from('loyalty_cards').upsert({user_id:S.user.id,image_data:legacy},{onConflict:'user_id'});
-  if(saveError){S.loyaltyImg=legacy;alert(`Impossibile trasferire la scheda fedeltà nel database: ${saveError.message}`);return;}
+  if(saveError){S.loyaltyImg=legacy;alert(`${t('migrateCardError')} ${saveError.message}`);return;}
   S.loyaltyImg=legacy;
   try{localStorage.removeItem('loyaltyImg');}catch{}
 }
-async function delLoyalty(){if(!confirm('Rimuovere la scheda fedeltà?'))return;const {error}=await sb.from('loyalty_cards').delete().eq('user_id',S.user.id);if(error)return alert(`Errore durante la rimozione della scheda fedeltà: ${error.message}`);S.loyaltyImg=null;try{localStorage.removeItem('loyaltyImg');}catch{}hideDialog();openSettings();}
-function showLoyalty(){const d=S.loyaltyImg;if(!d)return alert('Nessuna scheda fedeltà caricata. Aggiungila da ⚙️ Configurazione.');hideDialog();$('loyaltyImg').src=d;$('loyaltyModal').classList.add('open');}
+async function delLoyalty(){if(!confirm(t('removeCardConfirm')))return;const {error}=await sb.from('loyalty_cards').delete().eq('user_id',S.user.id);if(error)return alert(`${t('removeCardError')} ${error.message}`);S.loyaltyImg=null;try{localStorage.removeItem('loyaltyImg');}catch{}hideDialog();openSettings();}
+function showLoyalty(){const d=S.loyaltyImg;if(!d)return alert(t('noCard'));hideDialog();$('loyaltyImg').src=d;$('loyaltyModal').classList.add('open');}
 function hideLoyalty(){$('loyaltyModal').classList.remove('open');$('loyaltyImg').src='';}
 async function reload(){
   const [c,p,l]=await Promise.all([sb.from('categories').select('*').order('position'),sb.from('products').select('*').order('description'),sb.from('shopping_lists').select('*').order('created_at')]);
@@ -268,11 +396,11 @@ async function reload(){
 function go(p){S.page=p;render();}
 const curList=()=>S.lists.find(l=>l.id===S.listId);
 const prod=id=>S.prods.find(p=>p.id===id);
-const thumb=p=>p?.image_url?`<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" onclick="event.stopPropagation(); openPhotoModal('${esc(p.image_url)}')">`:`<div class="list-avatar">🛒</div>`;
+const thumb=p=>p?.image_url?`<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" onclick="event.stopPropagation(); openPhotoModal('${esc(p.image_url)}')">`:`<div class="list-avatar">${icon('cart')}</div>`;
 function render(){
   const f=captureFocus();
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===S.page));
-  $('title').textContent='🛒 '+(curList()?.name||'Spesa');
+  $('title').innerHTML=`${icon('cart')} ${esc(curList()?.name||t('appTitle'))}`;
   ({lists:vLists,cats:vCats,prods:vProds,pick:vPick,shop:vShop})[S.page]();
   restoreFocus(f);
 }
@@ -282,57 +410,57 @@ function closeDialog(event){if(event.target.id==='overlay') hideDialog();}
 
 /* ---- import / export ---- */
 function exportListJson(){const list=curList();const cats=orderedCats();const productsByCat={};cats.forEach(cat=>{productsByCat[cat.name]=S.prods.filter(p=>p.category_id===cat.id).map(p=>({descrizione:p.description,immagine:p.image_url||null}))});return{lista:list?.name||'lista',categorie:cats.map(c=>c.name),prodotti:productsByCat};}
-function openExportModal(){if(!S.listId) return alert('Seleziona una lista prima di esportare.');showDialog(`<div class="modal-panel"><h3>Esporta JSON</h3><p>Verrà scaricato un file con il nome della lista attiva. Il file contiene solo <b>categorie</b> e <b>prodotti</b>, incluse le immagini quando presenti.</p><textarea readonly>${esc(JSON.stringify(exportListJson(),null,2))}</textarea><div class="modal-actions"><button class="b gh" onclick="hideDialog()">Chiudi</button><button class="b" onclick="downloadExport()">Scarica JSON</button></div></div>`)}
-function openImportModal(){if(!S.listId) return alert('Seleziona una lista prima di importare.');showDialog(`<div class="modal-panel"><h3>Importa JSON</h3><p><b>ATTENZIONE:</b> l'importazione <b>SOVRASCRIVE TUTTI</b> i dati di <b>categorie</b> e <b>prodotti</b> della lista attiva. I dati attuali verranno persi.</p><input id="importFile" type="file" accept="application/json,.json"><div class="modal-actions"><button class="b gh" onclick="hideDialog()">Annulla</button><button class="b rd" onclick="confirmImport()">Importa e sovrascrivi</button></div></div>`)}
+function openExportModal(){if(!S.listId) return alert(t('selectListExport'));showDialog(`<div class="modal-panel"><h3>${t('exportJson')}</h3><p>${t('exportDescription')}</p><textarea readonly>${esc(JSON.stringify(exportListJson(),null,2))}</textarea><div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('closeButton')}</button><button class="b" onclick="downloadExport()">${t('downloadJson')}</button></div></div>`)}
+function openImportModal(){if(!S.listId) return alert(t('selectListExport'));showDialog(`<div class="modal-panel"><h3>${t('importJson')}</h3><p><b>${t('importWarning')}</b> ${t('importWarningDetail')}</p><input id="importFile" type="file" accept="application/json,.json"><div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('cancel')}</button><button class="b rd" onclick="confirmImport()">${t('importOverwrite')}</button></div></div>`)}
 function downloadExport(){const list=curList();const data=JSON.stringify(exportListJson(),null,2);const blob=new Blob([data],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${sanitizeFileName(list?.name||'lista')}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
 function sanitizeFileName(name){return String(name).trim().replace(/[\\/:*?"<>|]+/g,'_')||'lista';}
-async function confirmImport(){const file=$('importFile').files[0];if(!file) return alert('Seleziona un file JSON da importare.');if(!confirm('ATTENZIONE: questa operazione cancellerà tutte le categorie e i prodotti attuali della lista selezionata. Procedere?')) return;let parsed;try{parsed=JSON.parse(await file.text())}catch{return alert('Il file non è un JSON valido.')}await importJsonToCurrentList(parsed);hideDialog();reload();}
-async function importJsonToCurrentList(data){if(!S.listId) throw new Error('Nessuna lista selezionata.');if(!data||!Array.isArray(data.categorie)||typeof data.prodotti!=='object'){alert('Formato JSON non valido.');return;}const listId=S.listId;await sb.from('list_items').delete().eq('list_id',listId);await sb.from('products').delete().eq('list_id',listId);await sb.from('categories').delete().eq('list_id',listId);const categoryMap=new Map();for(let i=0;i<data.categorie.length;i++){const name=data.categorie[i];const ins=await sb.from('categories').insert({list_id:listId,name,position:i}).select().single();if(ins.data) categoryMap.set(name,ins.data.id)}for(const catName of data.categorie){const catId=categoryMap.get(catName);const items=Array.isArray(data.prodotti[catName])?data.prodotti[catName]:[];for(const item of items){const obj=typeof item==='string'?{descrizione:item,immagine:null}:item;if(!obj.descrizione) continue;await sb.from('products').insert({list_id:listId,description:obj.descrizione,category_id:catId,image_url:obj.immagine||null})}}}
+async function confirmImport(){const file=$('importFile').files[0];if(!file) return alert(t('chooseJson'));if(!confirm(t('confirmImport'))) return;let parsed;try{parsed=JSON.parse(await file.text())}catch{return alert(t('invalidJson'))}await importJsonToCurrentList(parsed);hideDialog();reload();}
+async function importJsonToCurrentList(data){if(!S.listId) throw new Error(t('noListSelected'));if(!data||!Array.isArray(data.categorie)||typeof data.prodotti!=='object'){alert(t('invalidJsonFormat'));return;}const listId=S.listId;await sb.from('list_items').delete().eq('list_id',listId);await sb.from('products').delete().eq('list_id',listId);await sb.from('categories').delete().eq('list_id',listId);const categoryMap=new Map();for(let i=0;i<data.categorie.length;i++){const name=data.categorie[i];const ins=await sb.from('categories').insert({list_id:listId,name,position:i}).select().single();if(ins.data) categoryMap.set(name,ins.data.id)}for(const catName of data.categorie){const catId=categoryMap.get(catName);const items=Array.isArray(data.prodotti[catName])?data.prodotti[catName]:[];for(const item of items){const obj=typeof item==='string'?{descrizione:item,immagine:null}:item;if(!obj.descrizione) continue;await sb.from('products').insert({list_id:listId,description:obj.descrizione,category_id:catId,image_url:obj.immagine||null})}}}
 
 /* ---- liste ---- */
-function vLists(){const hasList=!!S.listId;$('view').innerHTML=`<div class="card"><input id="nl" placeholder="Nuova lista (es. Esselunga)"><button class="b" onclick="addList()">Crea</button></div>${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b rd" onclick="delList('${l.id}')">🗑</button></div>`).join('')}<div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">Esporta JSON</button><button class="b gh" onclick="openImportModal()">Importa JSON</button>`:'<button class="b gh" onclick="alert(\'Seleziona una lista prima di esportare/importare.\')">Esporta/Importa</button>'}</div>`;}
+function vLists(){const hasList=!!S.listId;$('view').innerHTML=`<div class="card"><input id="nl" placeholder="${t('newList')}"><button class="b" onclick="addList()">${t('create')}</button></div>${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b rd" aria-label="${t('delete')}" onclick="delList('${l.id}')">${icon('trash')}</button></div>`).join('')}<div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">${t('exportJson')}</button><button class="b gh" onclick="openImportModal()">${t('importJson')}</button>`:`<button class="b gh" onclick="alert('${t('exportImportDisabled')}')">${t('exportJson')}/${t('importJson')}</button>`}</div>`;}
 async function addList(){const n=$('nl').value.trim();if(!n) return;const r=await sb.from('shopping_lists').insert({name:n}).select().single();if(r.data){S.listId=r.data.id;localStorage.setItem('listId',S.listId)}reload();}
 function selList(id){S.listId=id;localStorage.setItem('listId',id);reload();}
-async function delList(id){if(confirm('Eliminare la lista?')){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
+async function delList(id){if(confirm(t('deleteListConfirm'))){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
 
 /* ---- categorie ---- */
 let selectedCatId=null;
-function vCats(){const cs=orderedCats();const selected=selectedCatId && cs.some(c=>c.id===selectedCatId)?selectedCatId:null;if(!selected && cs.length) selectedCatId=cs[0].id;const activeSelected=selected || selectedCatId;$('view').innerHTML=`<div class="card"><input id="nc" placeholder="Nuova categoria"><button class="b" onclick="addCat()">Aggiungi</button></div><div class="mu" style="margin:0 4px 8px">Ordine di visualizzazione nella spesa.</div>${cs.map((c,i)=>{const isSelected=c.id===activeSelected;const row=`<div class="card ${isSelected?'sel':''}" data-cat-id="${c.id}" onclick="selectCat('${c.id}')"><div class="grow"><b>${esc(c.name)}</b></div>${isSelected?`<button class="b gh" ${i===0?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},-1)">▲</button><button class="b gh" ${i===cs.length-1?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},1)">▼</button><button class="b gh" onclick="event.stopPropagation(); renCat('${c.id}')">✏️</button><button class="b rd" onclick="event.stopPropagation(); delCat('${c.id}')">🗑</button>`:''}</div>`;return row;}).join('')}`;}
+function vCats(){const cs=orderedCats();const selected=selectedCatId && cs.some(c=>c.id===selectedCatId)?selectedCatId:null;if(!selected && cs.length) selectedCatId=cs[0].id;const activeSelected=selected || selectedCatId;$('view').innerHTML=`<div class="card"><input id="nc" placeholder="${t('newCategory')}"><button class="b" onclick="addCat()">${t('add')}</button></div><div class="mu" style="margin:0 4px 8px">${t('categoryOrder')}</div>${cs.map((c,i)=>{const isSelected=c.id===activeSelected;const row=`<div class="card ${isSelected?'sel':''}" data-cat-id="${c.id}" onclick="selectCat('${c.id}')"><div class="grow"><b>${esc(c.name)}</b></div>${isSelected?`<button class="b gh" aria-label="${t('moveUp')}" ${i===0?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},-1)">↑</button><button class="b gh" aria-label="${t('moveDown')}" ${i===cs.length-1?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},1)">↓</button><button class="b gh" aria-label="${t('rename')}" onclick="event.stopPropagation(); renCat('${c.id}')">${icon('edit')}</button><button class="b rd" aria-label="${t('delete')}" onclick="event.stopPropagation(); delCat('${c.id}')">${icon('trash')}</button>`:''}</div>`;return row;}).join('')}`;}
 function selectCat(id){selectedCatId=id;render();}
 async function addCat(){const n=$('nc').value.trim();if(!n) return;const pos=S.cats.length?Math.max(...S.cats.map(c=>Number(c.position)))+1:0;const r=await sb.from('categories').insert({name:n,position:pos,list_id:S.listId}).select().single();if(r.error) alert(r.error.message);if(r.data) selectedCatId=r.data.id;reload();}
 async function moveCat(i,d){const arr=orderedCats();if(!arr[i+d]) return;[arr[i],arr[i+d]]=[arr[i+d],arr[i]];await Promise.all(arr.map((c,k)=>sb.from('categories').update({position:k}).eq('id',c.id)));const movedId=arr[i+d]?.id || arr[i]?.id;selectedCatId=movedId;reload();}
-async function renCat(id){const n=prompt('Nuovo nome:');if(n){await sb.from('categories').update({name:n}).eq('id',id);reload();}}
-async function delCat(id){if(!confirm('Eliminare la categoria?')) return;const r=await sb.from('categories').delete().eq('id',id);if(r.error) alert('Categoria in uso da dei prodotti.');if(selectedCatId===id) selectedCatId=null;reload();}
+async function renCat(id){const n=prompt(t('newName'));if(n){await sb.from('categories').update({name:n}).eq('id',id);reload();}}
+async function delCat(id){if(!confirm(t('deleteCategoryConfirm'))) return;const r=await sb.from('categories').delete().eq('id',id);if(r.error) alert(t('categoryInUse'));if(selectedCatId===id) selectedCatId=null;reload();}
 
 /* ---- prodotti ---- */
-const filterBox=id=>`<div class="card filter-box"><input id="${id}" placeholder="Cerca prodotto..." value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>`;
-const prodRow=(p,showCat)=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div>${showCat?`<div class="product-meta">${esc(catName(p.category_id))}</div>`:''}</div><div class="small-actions"><button class="b gh" onclick="editProd('${p.id}')">✏️</button><button class="b rd" onclick="delProd('${p.id}')">🗑</button></div></div></div>`;
+const filterBox=id=>`<div class="card filter-box"><input id="${id}" placeholder="${t('searchProduct')}" value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>`;
+const prodRow=(p,showCat)=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div>${showCat?`<div class="product-meta">${esc(catName(p.category_id))}</div>`:''}</div><div class="small-actions"><button class="b gh" aria-label="${t('editProduct')}" onclick="editProd('${p.id}')">${icon('edit')}</button><button class="b rd" aria-label="${t('delete')}" onclick="delProd('${p.id}')">${icon('trash')}</button></div></div></div>`;
 function vProds(){
   const cats=orderedCats();
   const all=S.prods.filter(p=>matchesFilter(filterText,p));
   let listHtml;
   if(FLAT){
-    listHtml=all.length?[...all].sort(alpha).map(p=>prodRow(p,true)).join(''):'<div class="card">Nessun prodotto trovato.</div>';
+    listHtml=all.length?[...all].sort(alpha).map(p=>prodRow(p,true)).join(''):`<div class="card">${t('noProducts')}</div>`;
   } else {
     listHtml=cats.map(c=>{
       const ps=all.filter(p=>p.category_id===c.id).sort(alpha);
       if(!ps.length) return '';
       return catHead('prods',c.id,c.name,ps.length)+(isCol(colKey('prods',c.id))?'':ps.map(p=>prodRow(p,false)).join(''));
-    }).join('')||'<div class="card">Nessun prodotto trovato.</div>';
+    }).join('')||`<div class="card">${t('noProducts')}</div>`;
   }
   $('view').innerHTML=`
     ${filterBox('prodFilter')}
     ${flatBar()}
     ${FLAT?'':expBar('prods')}
     ${listHtml}
-    <div class="card col"><input id="pd" placeholder="Descrizione prodotto"><select id="pc">${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">📷 Foto</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">Aggiungi prodotto</button></div>`;
+    <div class="card col"><input id="pd" placeholder="${t('productDescription')}"><select id="pc">${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">${icon('camera')}${t('photo')}</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">${t('addProduct')}</button></div>`;
 }
 async function uploadProductImage(file){if(!file) return null;const path=crypto.randomUUID()+'-'+file.name.replace(/[^\w.]/g,'_');const u=await sb.storage.from('product-images').upload(path,file);if(u.error) throw new Error(u.error.message);return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl;}
-async function addProd(){const d=$('pd').value.trim(),c=$('pc').value;if(!d||!c) return alert('Inserisci descrizione e categoria');try{const f=$('pi').files[0];const url=await uploadProductImage(f);const r=await sb.from('products').insert({description:d,category_id:c,image_url:url,list_id:S.listId});if(r.error) alert(r.error.message);reload();}catch(e){alert(e.message||'Errore durante il caricamento della foto.');}}
-async function editProd(id){const p=prod(id);if(!p) return;const cats=orderedCats();showDialog(`<div class="modal-panel"><h3>Modifica prodotto</h3><div class="card col" style="margin:0"><input id="editProdDesc" value="${esc(p.description)}" placeholder="Descrizione prodotto"><select id="editProdCat">${cats.map(c=>`<option value="${c.id}" ${c.id===p.category_id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>${p.image_url?`<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" style="width:80px;height:80px;align-self:center">`:''}<div class="row"><label class="b gh camera-label" for="editProdImg">📷 Cambia foto</label><input id="editProdImg" type="file" accept="image/*" capture="environment" style="display:none"></div>${p.image_url?`<button class="b rd" onclick="removeProductImage('${id}')">🗑 Rimuovi foto</button>`:''}<div class="modal-actions"><button class="b gh" onclick="hideDialog()">Annulla</button><button class="b" onclick="saveProductEdit('${id}')">Salva</button></div></div></div>`);}
-async function removeProductImage(id){const p=prod(id);if(!p) return;if(!confirm('Rimuovere la foto del prodotto?')) return;try{await sb.from('products').update({image_url:null}).eq('id',id);hideDialog();reload();}catch(e){alert(e.message||'Errore durante la rimozione della foto.');}}
-async function saveProductEdit(id){const p=prod(id);if(!p) return;const desc=$('editProdDesc').value.trim();const cat=$('editProdCat').value;if(!desc||!cat) return alert('Inserisci descrizione e categoria.');try{const f=$('editProdImg')?.files?.[0];const payload={description:desc,category_id:cat};if(f){payload.image_url=await uploadProductImage(f);}else if(!f && !p.image_url && $('editProdImg') && $('editProdImg').files && $('editProdImg').files.length===0 && !p.image_url){payload.image_url=null;}await sb.from('products').update(payload).eq('id',id);hideDialog();reload();}catch(e){alert(e.message||'Errore durante il salvataggio del prodotto.');}}
-async function delProd(id){if(confirm('Eliminare il prodotto?')){await sb.from('products').delete().eq('id',id);reload();}}
+async function addProd(){const d=$('pd').value.trim(),c=$('pc').value;if(!d||!c) return alert(t('addProductValidation'));try{const f=$('pi').files[0];const url=await uploadProductImage(f);const r=await sb.from('products').insert({description:d,category_id:c,image_url:url,list_id:S.listId});if(r.error) alert(r.error.message);reload();}catch(e){alert(e.message||t('photoUploadError'));}}
+async function editProd(id){const p=prod(id);if(!p) return;const cats=orderedCats();showDialog(`<div class="modal-panel"><h3>${t('editProduct')}</h3><div class="card col" style="margin:0"><input id="editProdDesc" value="${esc(p.description)}" placeholder="${t('productDescription')}"><select id="editProdCat">${cats.map(c=>`<option value="${c.id}" ${c.id===p.category_id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>${p.image_url?`<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" style="width:80px;height:80px;align-self:center">`:''}<div class="row"><label class="b gh camera-label" for="editProdImg">${icon('camera')}${t('changePhoto')}</label><input id="editProdImg" type="file" accept="image/*" capture="environment" style="display:none"></div>${p.image_url?`<button class="b rd" onclick="removeProductImage('${id}')">${icon('trash')}${t('removePhoto')}</button>`:''}<div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('cancel')}</button><button class="b" onclick="saveProductEdit('${id}')">${t('save')}</button></div></div></div>`);}
+async function removeProductImage(id){const p=prod(id);if(!p) return;if(!confirm(t('removePhotoConfirm'))) return;try{await sb.from('products').update({image_url:null}).eq('id',id);hideDialog();reload();}catch(e){alert(e.message||t('photoRemoveError'));}}
+async function saveProductEdit(id){const p=prod(id);if(!p) return;const desc=$('editProdDesc').value.trim();const cat=$('editProdCat').value;if(!desc||!cat) return alert(t('saveProductValidation'));try{const f=$('editProdImg')?.files?.[0];const payload={description:desc,category_id:cat};if(f){payload.image_url=await uploadProductImage(f);}else if(!f && !p.image_url && $('editProdImg') && $('editProdImg').files && $('editProdImg').files.length===0 && !p.image_url){payload.image_url=null;}await sb.from('products').update(payload).eq('id',id);hideDialog();reload();}catch(e){alert(e.message||t('productSaveError'));}}
+async function delProd(id){if(confirm(t('deleteProductConfirm'))){await sb.from('products').delete().eq('id',id);reload();}}
 
 /* ---- lista (selezione articoli) ---- */
 function pickRow(p,showCat){
@@ -342,31 +470,31 @@ function pickRow(p,showCat){
   return `<div class="card ${selected?'sel':''}" onclick="toggleItem('${p.id}')"><div class="chk">${selected?'✓':''}</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div>${showCat?`<div class="product-meta">${esc(catName(p.category_id))}</div>`:''}</div><div class="qtybox" onclick="event.stopPropagation();"><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', -1)">−</button><span>${qty}</span><button type="button" onclick="event.stopPropagation(); changeQty('${p.id}', 1)">+</button></div></div>`;
 }
 function vPick(){
-  if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';
+  if(!S.listId) return $('view').innerHTML=`<div class="card">${t('noList')}</div>`;
   const all=S.prods.filter(p=>matchesFilter(filterText,p));
   let body;
   if(FLAT){
-    body=all.length?[...all].sort(alpha).map(p=>pickRow(p,true)).join(''):'<div class="card">Nessun prodotto trovato.</div>';
+    body=all.length?[...all].sort(alpha).map(p=>pickRow(p,true)).join(''):`<div class="card">${t('noProducts')}</div>`;
   } else {
     body=orderedCats().map(c=>{
       const ps=all.filter(p=>p.category_id===c.id).sort(alpha);
       if(!ps.length) return '';
       const nSel=ps.filter(p=>S.items.find(i=>i.product_id===p.id)).length;
       return catHead('pick',c.id,c.name,nSel?`${nSel}/${ps.length}`:ps.length)+(isCol(colKey('pick',c.id))?'':ps.map(p=>pickRow(p,false)).join(''));
-    }).join('')||'<div class="card">Nessun prodotto trovato.</div>';
+    }).join('')||`<div class="card">${t('noProducts')}</div>`;
   }
-  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${FLAT?'':expBar('pick')}${body}<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">＋ Aggiungi prodotto</button>`;
+  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${FLAT?'':expBar('pick')}${body}<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`;
 }
 function openAddProductModal(){
-  if(!S.listId)return alert('Seleziona una lista prima di aggiungere un prodotto.');
+  if(!S.listId)return alert(t('selectListFirst'));
   const cats=orderedCats();
-  if(!cats.length)return alert('Aggiungi prima una categoria dalla scheda Categorie.');
-  showDialog(`<form class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="addProductTitle" onsubmit="event.preventDefault(); addProductFromPick()"><h3 id="addProductTitle">Aggiungi prodotto</h3><label for="pickProductDesc">Descrizione</label><input id="pickProductDesc" placeholder="Descrizione prodotto" required><label for="pickProductCat">Categoria</label><select id="pickProductCat" required>${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="modal-actions"><button type="button" class="b gh" onclick="hideDialog()">Annulla</button><button id="pickProductSubmit" type="submit" class="b">Aggiungi</button></div></form>`);
+  if(!cats.length)return alert(t('addProductFirst'));
+  showDialog(`<form class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="addProductTitle" onsubmit="event.preventDefault(); addProductFromPick()"><h3 id="addProductTitle">${t('addProduct')}</h3><label for="pickProductDesc">${t('description')}</label><input id="pickProductDesc" placeholder="${t('productDescription')}" required><label for="pickProductCat">${t('category')}</label><select id="pickProductCat" required>${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="modal-actions"><button type="button" class="b gh" onclick="hideDialog()">${t('cancel')}</button><button id="pickProductSubmit" type="submit" class="b">${t('add')}</button></div></form>`);
   $('pickProductDesc').focus();
 }
 async function addProductFromPick(){
   const description=$('pickProductDesc').value.trim(),categoryId=$('pickProductCat').value;
-  if(!description||!categoryId)return alert('Inserisci descrizione e categoria.');
+  if(!description||!categoryId)return alert(t('saveProductValidation'));
   const button=$('pickProductSubmit');
   button.disabled=true;
   try{
@@ -376,7 +504,7 @@ async function addProductFromPick(){
     filterText='';
     await reload();
   }catch(e){
-    alert(e.message||'Errore durante l’aggiunta del prodotto.');
+    alert(e.message||t('addProductError'));
     if($('pickProductSubmit'))$('pickProductSubmit').disabled=false;
   }
 }
@@ -386,38 +514,38 @@ function changeQty(pid,delta){const item=S.items.find(i=>i.product_id===pid);con
 
 /* ---- spesa ---- */
 function vShop(){
-  if(!S.listId) return $('view').innerHTML='<div class="card">Crea prima una lista.</div>';
+  if(!S.listId) return $('view').innerHTML=`<div class="card">${t('noList')}</div>`;
   const items=S.items||[];
   const toBuy=items.filter(i=>i.status!=='purchased');
   const bought=items.filter(i=>i.status==='purchased');
   const tot=toBuy.length+bought.length;
   const done=bought.length;
   const cats=orderedCats();
-  let html=`<div class="card col"><b>Mancano ${toBuy.length} prodotti su ${tot}</b><div class="bar"><i style="width:${tot?(done/tot)*100:0}%"></i></div><button class="b ok wide-btn" onclick="closeCart()">✅ Chiudi carrello</button></div>`;
+  let html=`<div class="card col"><b>${t('cartRemaining',{remaining:toBuy.length,total:tot})}</b><div class="bar"><i style="width:${tot?(done/tot)*100:0}%"></i></div><button class="b ok wide-btn" onclick="closeCart()">${icon('cart')}${t('closeCart')}</button></div>`;
   html+=filterBox('shopFilter');
   html+=expBar('shop');
   if(toBuy.length){
     html+=cats.map(c=>{
       const its=toBuy.filter(i=>prod(i.product_id)?.category_id===c.id && matchesFilter(filterText,prod(i.product_id)));
       if(!its.length) return '';
-      return catHead('shop',c.id,c.name,its.length)+(isCol(colKey('shop',c.id))?'':its.map(i=>{const p=prod(i.product_id);return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join(''));
+      return catHead('shop',c.id,c.name,its.length)+(isCol(colKey('shop',c.id))?'':its.map(i=>{const p=prod(i.product_id);return `<div class="card" onclick="buy('${i.id}', true)"><div class="chk"></div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">${t('quantity')} ${i.quantity||1}</div></div></div>`;}).join(''));
     }).join('');
   } else {
-    html+='<div class="card">Nessun prodotto da acquistare.</div>';
+    html+=`<div class="card">${t('noProductsBuy')}</div>`;
   }
   if(bought.length){
     const bv=bought.filter(i=>matchesFilter(filterText,prod(i.product_id)));
     if(bv.length){
       html+=catHead('shop','bought','Acquistati',bv.length);
       if(!isCol(colKey('shop','bought'))){
-        html+=cats.map(c=>bv.filter(i=>prod(i.product_id)?.category_id===c.id).map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">Quantità: ${i.quantity||1}</div></div></div>`;}).join('')).join('');
+        html+=cats.map(c=>bv.filter(i=>prod(i.product_id)?.category_id===c.id).map(i=>{const p=prod(i.product_id);return `<div class="card done" onclick="buy('${i.id}', false)"><div class="chk">✓</div>${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div><div class="product-meta">${t('quantity')} ${i.quantity||1}</div></div></div>`;}).join('')).join('');
       }
     }
   }
   $('view').innerHTML=`<div class="shop-view">${html}</div>`;
 }
 function buy(id,v){const it=S.items.find(i=>i.id===id);if(it)it.status=v?'purchased':'to_buy';render();sb.from('list_items').update({status:v?'purchased':'to_buy',updated_at:new Date().toISOString()}).eq('id',id).then(dbFail);}
-async function closeCart(){if(!confirm('Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.')) return;await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');reload();}
+async function closeCart(){if(!confirm(t('closeCartConfirm'))) return;await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');reload();}
 function openPhotoModal(url){$('photoModalImg').src=url;$('photoModal').classList.add('open');}
 function hidePhotoModal(){$('photoModal').classList.remove('open');$('photoModalImg').src='';}
 function closePhotoModal(event){if(event.target.id==='photoModal') hidePhotoModal();}
