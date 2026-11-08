@@ -90,8 +90,6 @@ img.th{width:48px;height:48px;flex:none;border:1px solid var(--bd);border-radius
 .modal-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:16px}
 .list-actions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .list-actions .b{flex:1 1 140px}
-.template-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.template-actions .b{flex:1 1 160px;min-height:44px;white-space:normal}
 .filter-box{margin:0 0 8px}
 header .who{display:block;overflow:hidden;color:var(--mu);font-size:12px;font-weight:400;text-overflow:ellipsis}
 .hl{min-width:0;flex:1}
@@ -153,7 +151,7 @@ header .who{display:block;overflow:hidden;color:var(--mu);font-size:12px;font-we
 const SUPABASE_URL='https://tdagxuyvckiageppiwbh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-let S={cats:[],prods:[],lists:[],items:[],templates:[],catOrder:[],history:[],page:'lists',listId:localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
+let S={cats:[],prods:[],lists:[],items:[],catOrder:[],history:[],page:'lists',listId:localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
 let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch{COL={}}
 let filterText='';
 let FLAT=localStorage.getItem('flatView')==='1';
@@ -193,17 +191,10 @@ const TEXT={
     addProductError:'Errore durante l’aggiunta del prodotto.',cartRemaining:'Mancano {remaining} prodotti su {total}',
     closeCart:'Chiudi carrello',closeCartConfirm:'Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.',
     noListSelected:'Nessuna lista selezionata.',loginError:'Controlla la mail per confermare (se richiesto).',
-    templatesRecurring:'Template e ricorrenze',saveAsTemplate:'Salva lista corrente come template',templateName:'Nome template',
-    recurrence:'Ricorrenza',none:'Nessuna',weekly:'Settimanale',biweekly:'Quindicinale',monthly:'Mensile',
-    templateCreateHint:'Il template salva i prodotti attualmente selezionati nella scheda Lista.',templateNoItems:'Seleziona prima almeno un prodotto nella scheda Lista.',
-    templateSaved:'Template salvato.',templatesEmpty:'Nessun template disponibile.',createFromTemplate:'Nuova lista',
-    applyAddMissing:'Aggiungi mancanti',applyReplace:'Sovrascrivi lista attiva',templateDelete:'Elimina template',
-    templateDeleteConfirm:'Eliminare il template?',newListName:'Nome nuova lista',createFromTemplateError:'Errore creazione lista da template.',
     routeOrder:'Ordine percorso per lista',routeOrderHint:'L’ordine vale per la lista attiva e segue il percorso del supermercato.',
-    dueTemplates:'Template da rigenerare oggi',generateNow:'Genera ora',suggestionsTitle:'Suggerimenti automatici',
-    suggestionFromHistory:'Ultimo acquisto {days} giorni fa (media {avg} giorni)',suggestionSingle:'Comprato {days} giorni fa',
-    applyTemplateMode:'Modalità applicazione',templateApplied:'Template applicato.',
-    autoPrefilledList:'Lista precompilata con {count} prodotti in base allo storico acquisti.'
+    suggestProducts:'Suggerisci',clearList:'Azzera lista',
+    clearListConfirm:'Azzera la lista corrente? Verranno rimossi tutti gli articoli selezionati.',
+    suggestedAdded:'Aggiunti {count} prodotti suggeriti alla lista.',noSuggested:'Nessun suggerimento disponibile al momento.'
   },
   en:{
     appName:'Shopping List',appDescription:'Manage your shopping lists wherever you are.',productPhotoAlt:'Enlarged product photo',loyaltyCardAlt:'Loyalty card',email:'Email',password:'Password',showPassword:'Show password',hidePassword:'Hide password',
@@ -238,17 +229,10 @@ const TEXT={
     addProductError:'Error adding the product.',cartRemaining:'{remaining} of {total} items remaining',
     closeCart:'Finish shopping',closeCartConfirm:'Finish shopping? Purchased items will be removed from the list.',
     noListSelected:'No list selected.',loginError:'Check your email to confirm your account (if required).',
-    templatesRecurring:'Templates and recurring',saveAsTemplate:'Save current list as template',templateName:'Template name',
-    recurrence:'Recurrence',none:'None',weekly:'Weekly',biweekly:'Biweekly',monthly:'Monthly',
-    templateCreateHint:'The template stores products currently selected in the Select tab.',templateNoItems:'Select at least one product in the Select tab first.',
-    templateSaved:'Template saved.',templatesEmpty:'No templates available.',createFromTemplate:'New list',
-    applyAddMissing:'Add missing',applyReplace:'Overwrite current list',templateDelete:'Delete template',
-    templateDeleteConfirm:'Delete this template?',newListName:'New list name',createFromTemplateError:'Error creating list from template.',
     routeOrder:'Per-list route order',routeOrderHint:'Order applies to the active list and follows the store path.',
-    dueTemplates:'Templates due today',generateNow:'Generate now',suggestionsTitle:'Automatic suggestions',
-    suggestionFromHistory:'Last bought {days} days ago (avg {avg} days)',suggestionSingle:'Bought {days} days ago',
-    applyTemplateMode:'Apply mode',templateApplied:'Template applied.',
-    autoPrefilledList:'List prefilled with {count} products based on purchase history.'
+    suggestProducts:'Suggest',clearList:'Clear list',
+    clearListConfirm:'Clear current list? All selected items will be removed.',
+    suggestedAdded:'Added {count} suggested products to the list.',noSuggested:'No suggestions available right now.'
   }
 };
 const t=(key,values={})=>String(TEXT[LANGUAGE][key]??TEXT.it[key]??key).replace(/\{(\w+)\}/g,(_,name)=>values[name]??'');
@@ -415,15 +399,6 @@ async function loadLoyalty(){
 async function delLoyalty(){if(!confirm(t('removeCardConfirm')))return;const {error}=await sb.from('loyalty_cards').delete().eq('user_id',S.user.id);if(error)return alert(`${t('removeCardError')} ${error.message}`);S.loyaltyImg=null;try{localStorage.removeItem('loyaltyImg');}catch{}hideDialog();openSettings();}
 function showLoyalty(){const d=S.loyaltyImg;if(!d)return alert(t('noCard'));hideDialog();$('loyaltyImg').src=d;$('loyaltyModal').classList.add('open');}
 function hideLoyalty(){$('loyaltyModal').classList.remove('open');$('loyaltyImg').src='';}
-function recurrenceLabel(key){return t(key||'none');}
-function recurrenceNextDate(key,fromDate=new Date()){
-  if(!key||key==='none')return null;
-  const next=new Date(fromDate);
-  if(key==='weekly')next.setDate(next.getDate()+7);
-  else if(key==='biweekly')next.setDate(next.getDate()+14);
-  else if(key==='monthly')next.setMonth(next.getMonth()+1);
-  return next.toISOString().slice(0,10);
-}
 async function ensureListRouteOrder(){
   if(!S.listId||!S.cats.length)return;
   const existing=new Map((S.catOrder||[]).map(x=>[x.category_id,x.position]));
@@ -434,10 +409,6 @@ async function ensureListRouteOrder(){
   await sb.from('list_category_order').upsert(rows,{onConflict:'list_id,category_id'});
   const {data}=await sb.from('list_category_order').select('*').eq('list_id',S.listId).order('position');
   S.catOrder=data||[];
-}
-function dueTemplates(){
-  const today=new Date().toISOString().slice(0,10);
-  return (S.templates||[]).filter(tp=>tp.next_run_date&&tp.next_run_date<=today);
 }
 function historyGroups(rows){
   const groups=new Map();
@@ -478,53 +449,13 @@ function dueProductsFromHistory(rows){
   }
   return out.sort((a,b)=>b.score-a.score);
 }
-async function prefillListFromHistory(listId){
-  if(!S.user||!listId)return 0;
-  const {data,error}=await sb.from('purchase_history').select('product_description,category_name,quantity,purchased_at').eq('user_id',S.user.id).order('purchased_at',{ascending:false}).limit(800);
-  if(error||!data?.length)return 0;
-  const due=dueProductsFromHistory(data).slice(0,60);
-  if(!due.length)return 0;
-  const {data:existingCats}=await sb.from('categories').select('*').eq('list_id',listId).order('position');
-  const catMap=new Map((existingCats||[]).map(c=>[normalize(c.name),c]));
-  let catPos=(existingCats||[]).length;
-  for(const row of due){
-    const key=normalize(row.category_name);
-    if(catMap.has(key))continue;
-    const ins=await sb.from('categories').insert({list_id:listId,name:row.category_name,position:catPos++}).select().single();
-    if(ins.error)continue;
-    catMap.set(key,ins.data);
-  }
-  const {data:existingProds}=await sb.from('products').select('*').eq('list_id',listId);
-  const prodMap=new Map((existingProds||[]).map(p=>[`${normalize(p.description)}::${normalize(catName(p.category_id))}`,p]));
-  let inserted=0;
-  for(const row of due){
-    const cat=catMap.get(normalize(row.category_name));
-    if(!cat)continue;
-    const key=`${normalize(row.description)}::${normalize(cat.name)}`;
-    let p=prodMap.get(key);
-    if(!p){
-      const ins=await sb.from('products').insert({list_id:listId,description:row.description,category_id:cat.id,image_url:null}).select().single();
-      if(ins.error)continue;
-      p=ins.data;
-      prodMap.set(key,p);
-    }
-    const up=await sb.from('list_items').upsert({list_id:listId,product_id:p.id,quantity:Number(row.quantity||1),status:'to_buy',updated_at:new Date().toISOString()},{onConflict:'list_id,product_id'});
-    if(!up.error)inserted++;
-  }
-  const {data:allCats}=await sb.from('categories').select('*').eq('list_id',listId).order('position');
-  const orderRows=(allCats||[]).map((c,idx)=>({list_id:listId,category_id:c.id,position:idx}));
-  if(orderRows.length)await sb.from('list_category_order').upsert(orderRows,{onConflict:'list_id,category_id'});
-  return inserted;
-}
 async function reload(){
-  const [c,p,l,tp]=await Promise.all([
+  const [c,p,l]=await Promise.all([
     sb.from('categories').select('*').order('position'),
     sb.from('products').select('*').order('description'),
-    sb.from('shopping_lists').select('*').order('created_at'),
-    S.user?sb.from('list_templates').select('*').eq('owner_id',S.user.id).order('created_at',{ascending:false}):Promise.resolve({data:[]})
+    sb.from('shopping_lists').select('*').order('created_at')
   ]);
   S.lists=l.data||[];
-  S.templates=tp.data||[];
   if(!S.lists.find(x=>x.id===S.listId))S.listId=S.lists[0]?.id||null;
   S.cats=(c.data||[]).filter(x=>x.list_id===S.listId).sort((a,b)=>Number(a.position??0)-Number(b.position??0));
   S.prods=(p.data||[]).filter(x=>x.list_id===S.listId);
@@ -570,156 +501,11 @@ function sanitizeFileName(name){return String(name).trim().replace(/[\\/:*?"<>|]
 async function confirmImport(){const file=$('importFile').files[0];if(!file) return alert(t('chooseJson'));if(!confirm(t('confirmImport'))) return;let parsed;try{parsed=JSON.parse(await file.text())}catch{return alert(t('invalidJson'))}await importJsonToCurrentList(parsed);hideDialog();reload();}
 async function importJsonToCurrentList(data){if(!S.listId) throw new Error(t('noListSelected'));if(!data||!Array.isArray(data.categorie)||typeof data.prodotti!=='object'){alert(t('invalidJsonFormat'));return;}const listId=S.listId;await sb.from('list_items').delete().eq('list_id',listId);await sb.from('products').delete().eq('list_id',listId);await sb.from('categories').delete().eq('list_id',listId);const categoryMap=new Map();for(let i=0;i<data.categorie.length;i++){const name=data.categorie[i];const ins=await sb.from('categories').insert({list_id:listId,name,position:i}).select().single();if(ins.data) categoryMap.set(name,ins.data.id)}for(const catName of data.categorie){const catId=categoryMap.get(catName);const items=Array.isArray(data.prodotti[catName])?data.prodotti[catName]:[];for(const item of items){const obj=typeof item==='string'?{descrizione:item,immagine:null}:item;if(!obj.descrizione) continue;await sb.from('products').insert({list_id:listId,description:obj.descrizione,category_id:catId,image_url:obj.immagine||null})}}}
 
-/* ---- template / ricorrenze ---- */
-async function getTemplateItems(templateId){
-  const {data,error}=await sb.from('list_template_items').select('*').eq('template_id',templateId).order('position');
-  if(error)throw error;
-  return data||[];
-}
-function recurrenceOptions(selected='none'){
-  return ['none','weekly','biweekly','monthly'].map(v=>`<option value="${v}" ${v===selected?'selected':''}>${t(v)}</option>`).join('');
-}
-function openTemplatesModal(){
-  const templates=S.templates||[];
-  showDialog(`<div class="modal-panel"><h3>${t('templatesRecurring')}</h3>
-  <p>${t('templateCreateHint')}</p>
-  <div class="row"><button class="b" onclick="openCreateTemplateModal()">${t('saveAsTemplate')}</button></div>
-  ${templates.length?templates.map(tp=>`<div class="card col" style="margin-top:10px"><div class="row"><b>${esc(tp.name)}</b><span class="mu">${recurrenceLabel(tp.recurrence)}</span>${tp.next_run_date?`<span class="mu">• ${esc(tp.next_run_date)}</span>`:''}</div><div class="template-actions"><button class="b gh" onclick="createListFromTemplate('${tp.id}')">${t('createFromTemplate')}</button><button class="b gh" onclick="applyTemplateToCurrentList('${tp.id}','add_missing')">${t('applyAddMissing')}</button><button class="b gh" onclick="applyTemplateToCurrentList('${tp.id}','replace')">${t('applyReplace')}</button><button class="b rd" onclick="deleteTemplate('${tp.id}')">${t('templateDelete')}</button></div></div>`).join(''):`<div class="card">${t('templatesEmpty')}</div>`}
-  <div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('closeButton')}</button></div></div>`);
-}
-function openCreateTemplateModal(){
-  if(!S.items.length)return alert(t('templateNoItems'));
-  showDialog(`<div class="modal-panel"><h3>${t('saveAsTemplate')}</h3>
-  <label for="templateName">${t('templateName')}</label><input id="templateName" value="${esc(curList()?.name||'')}" />
-  <label for="templateRecurrence">${t('recurrence')}</label><select id="templateRecurrence">${recurrenceOptions('none')}</select>
-  <div class="modal-actions"><button class="b gh" onclick="openTemplatesModal()">${t('cancel')}</button><button class="b" onclick="saveCurrentListAsTemplate()">${t('save')}</button></div></div>`);
-}
-async function saveCurrentListAsTemplate(){
-  const name=$('templateName').value.trim();
-  const recurrence=$('templateRecurrence').value;
-  if(!name)return;
-  const selectedItems=(S.items||[]).map(i=>({...i,p:prod(i.product_id)})).filter(x=>x.p);
-  if(!selectedItems.length)return alert(t('templateNoItems'));
-  const nextDate=recurrenceNextDate(recurrence,new Date());
-  const {data,error}=await sb.from('list_templates').insert({owner_id:S.user.id,name,source_list_id:S.listId,recurrence,next_run_date:nextDate}).select().single();
-  if(error)return alert(error.message);
-  const cats=orderedCats();
-  const catPos=new Map(cats.map((c,idx)=>[c.id,idx]));
-  const sorted=selectedItems.sort((a,b)=>{
-    const ac=catPos.get(a.p.category_id)??9999,bc=catPos.get(b.p.category_id)??9999;
-    if(ac!==bc)return ac-bc;
-    return alpha(a.p,b.p);
-  });
-  const rows=sorted.map((x,idx)=>({
-    template_id:data.id,
-    position:idx,
-    category_name:catName(x.p.category_id)||'',
-    description:x.p.description,
-    image_url:x.p.image_url||null,
-    quantity:Number(x.quantity||1)
-  }));
-  const ins=await sb.from('list_template_items').insert(rows);
-  if(ins.error)return alert(ins.error.message);
-  alert(t('templateSaved'));
-  await reload();
-  openTemplatesModal();
-}
-async function advanceTemplateRecurrence(templateId){
-  const template=(S.templates||[]).find(x=>x.id===templateId);
-  if(!template||!template.recurrence||template.recurrence==='none')return;
-  let base=template.next_run_date?new Date(`${template.next_run_date}T00:00:00`):new Date();
-  let next=recurrenceNextDate(template.recurrence,base);
-  while(next&&next<=new Date().toISOString().slice(0,10)){
-    next=recurrenceNextDate(template.recurrence,new Date(`${next}T00:00:00`));
-  }
-  await sb.from('list_templates').update({next_run_date:next}).eq('id',templateId);
-}
-async function applyTemplateToList(listId,templateId,mode){
-  const items=await getTemplateItems(templateId);
-  if(!items.length)return;
-  if(mode==='replace'){
-    await sb.from('list_items').delete().eq('list_id',listId);
-    await sb.from('products').delete().eq('list_id',listId);
-    await sb.from('categories').delete().eq('list_id',listId);
-    await sb.from('list_category_order').delete().eq('list_id',listId);
-  }
-  const {data:existingCats}=await sb.from('categories').select('*').eq('list_id',listId).order('position');
-  const catMap=new Map((existingCats||[]).map(c=>[normalize(c.name),c]));
-  let catPosition=(existingCats||[]).length;
-  const orderedCatNames=[...new Set(items.map(x=>x.category_name||''))];
-  for(const name of orderedCatNames){
-    const key=normalize(name||'Generale');
-    if(catMap.has(key))continue;
-    const ins=await sb.from('categories').insert({list_id:listId,name:name||'Generale',position:catPosition++}).select().single();
-    if(ins.data)catMap.set(key,ins.data);
-  }
-  const {data:existingProds}=await sb.from('products').select('*').eq('list_id',listId);
-  const prodMap=new Map((existingProds||[]).map(p=>[`${normalize(p.description)}::${p.category_id}`,p]));
-  for(const row of items){
-    const cat=catMap.get(normalize(row.category_name||'Generale'));
-    if(!cat)continue;
-    const key=`${normalize(row.description)}::${cat.id}`;
-    let p=prodMap.get(key);
-    if(!p){
-      const ins=await sb.from('products').insert({list_id:listId,description:row.description,category_id:cat.id,image_url:row.image_url||null}).select().single();
-      if(ins.error)throw ins.error;
-      p=ins.data;
-      prodMap.set(key,p);
-    }
-    const payload={list_id:listId,product_id:p.id,quantity:Number(row.quantity||1),status:'to_buy',updated_at:new Date().toISOString()};
-    if(mode==='add_missing'){
-      await sb.from('list_items').upsert(payload,{onConflict:'list_id,product_id',ignoreDuplicates:true});
-    }else{
-      await sb.from('list_items').upsert(payload,{onConflict:'list_id,product_id'});
-    }
-  }
-  const {data:allCats}=await sb.from('categories').select('*').eq('list_id',listId);
-  const orderRows=(allCats||[]).sort((a,b)=>Number(a.position??0)-Number(b.position??0)).map((c,idx)=>({list_id:listId,category_id:c.id,position:idx}));
-  if(orderRows.length)await sb.from('list_category_order').upsert(orderRows,{onConflict:'list_id,category_id'});
-}
-async function applyTemplateToCurrentList(templateId,mode){
-  if(!S.listId)return alert(t('noListSelected'));
-  try{
-    await applyTemplateToList(S.listId,templateId,mode);
-    await advanceTemplateRecurrence(templateId);
-    alert(t('templateApplied'));
-    await reload();
-    openTemplatesModal();
-  }catch(e){alert(e.message||t('createFromTemplateError'));}
-}
-async function createListFromTemplate(templateId){
-  const template=(S.templates||[]).find(x=>x.id===templateId);
-  if(!template)return;
-  const defaultName=`${template.name} ${new Date().toLocaleDateString(LANGUAGE==='it'?'it-IT':'en-GB')}`;
-  const listName=prompt(t('newListName'),defaultName);
-  if(!listName)return;
-  try{
-    const created=await sb.from('shopping_lists').insert({name:listName.trim()}).select().single();
-    if(created.error)throw created.error;
-    await applyTemplateToList(created.data.id,templateId,'replace');
-    await advanceTemplateRecurrence(templateId);
-    S.listId=created.data.id;
-    localStorage.setItem('listId',S.listId);
-    await reload();
-    hideDialog();
-  }catch(e){alert(e.message||t('createFromTemplateError'));}
-}
-async function runDueTemplate(templateId){
-  await createListFromTemplate(templateId);
-}
-async function deleteTemplate(templateId){
-  if(!confirm(t('templateDeleteConfirm')))return;
-  await sb.from('list_templates').delete().eq('id',templateId);
-  await reload();
-  openTemplatesModal();
-}
-
 /* ---- suggerimenti automatici ---- */
 function daysBetween(a,b){return Math.max(0,Math.round((a-b)/86400000));}
-function buildSuggestions(){
+function buildSuggestions(limit=5){
   const due=dueProductsFromHistory(S.history||[]);
   const dueMap=new Map(due.map(d=>[`${normalize(d.description)}::${normalize(d.category_name)}`,d]));
-  const now=new Date();
   const activeIds=new Set((S.items||[]).map(i=>i.product_id));
   const out=[];
   for(const p of (S.prods||[])){
@@ -727,28 +513,41 @@ function buildSuggestions(){
     const key=`${normalize(p.description)}::${normalize(catName(p.category_id))}`;
     const hit=dueMap.get(key);
     if(!hit)continue;
-    const reason=t('suggestionFromHistory',{days:hit.daysSince,avg:hit.avgDays});
-    out.push({product:p,reason,score:hit.score});
+    out.push({product:p,score:hit.score});
   }
-  return out.sort((a,b)=>b.score-a.score).slice(0,5);
+  return out.sort((a,b)=>b.score-a.score).slice(0,limit);
 }
-function addSuggestedProduct(pid){
-  const ex=S.items.find(i=>i.product_id===pid);
-  if(ex)return;
-  const row={id:crypto.randomUUID(),list_id:S.listId,product_id:pid,quantity:1,status:'to_buy'};
-  S.items=[...S.items,row];
+async function suggestProductsForCurrentList(){
+  if(!S.listId)return;
+  const suggestions=buildSuggestions(40);
+  if(!suggestions.length)return alert(t('noSuggested'));
+  let inserted=0;
+  for(const s of suggestions){
+    const exists=S.items.find(i=>i.product_id===s.product.id);
+    if(exists)continue;
+    const row={id:crypto.randomUUID(),list_id:S.listId,product_id:s.product.id,quantity:1,status:'to_buy'};
+    S.items=[...S.items,row];
+    const {error}=await sb.from('list_items').insert(row);
+    if(!error)inserted++;
+  }
   render();
-  sb.from('list_items').insert(row).then(dbFail);
+  if(inserted)alert(t('suggestedAdded',{count:inserted}));
+  else alert(t('noSuggested'));
+}
+async function clearCurrentList(){
+  if(!S.listId)return;
+  if(!confirm(t('clearListConfirm')))return;
+  await sb.from('list_items').delete().eq('list_id',S.listId);
+  S.items=[];
+  render();
 }
 
 /* ---- liste ---- */
 function vLists(){
   const hasList=!!S.listId;
-  const due=dueTemplates();
   $('view').innerHTML=`<div class="card"><input id="nl" placeholder="${t('newList')}"><button class="b" onclick="addList()">${t('create')}</button></div>
   ${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b rd" aria-label="${t('delete')}" onclick="delList('${l.id}')">${icon('trash')}</button></div>`).join('')}
-  <div class="list-actions"><button class="b gh" onclick="openTemplatesModal()">${t('templatesRecurring')}</button>${hasList?`<button class="b gh" onclick="openExportModal()">${t('exportJson')}</button><button class="b gh" onclick="openImportModal()">${t('importJson')}</button>`:`<button class="b gh" onclick="alert('${t('exportImportDisabled')}')">${t('exportJson')}/${t('importJson')}</button>`}</div>
-  ${due.length?`<h2>${t('dueTemplates')}</h2>${due.map(tp=>`<div class="card"><div class="grow"><b>${esc(tp.name)}</b><div class="mu">${recurrenceLabel(tp.recurrence)} • ${esc(tp.next_run_date||'')}</div></div><button class="b" onclick="runDueTemplate('${tp.id}')">${t('generateNow')}</button></div>`).join('')}`:''}`;
+  <div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">${t('exportJson')}</button><button class="b gh" onclick="openImportModal()">${t('importJson')}</button>`:`<button class="b gh" onclick="alert('${t('exportImportDisabled')}')">${t('exportJson')}/${t('importJson')}</button>`}</div>`;
 }
 async function addList(){
   const n=$('nl').value.trim();
@@ -757,8 +556,6 @@ async function addList(){
   if(r.data){
     S.listId=r.data.id;
     localStorage.setItem('listId',S.listId);
-    const inserted=await prefillListFromHistory(S.listId);
-    if(inserted>0)alert(t('autoPrefilledList',{count:inserted}));
   }
   reload();
 }
@@ -819,7 +616,6 @@ function pickRow(p,showCat){
 function vPick(){
   if(!S.listId) return $('view').innerHTML=`<div class="card">${t('noList')}</div>`;
   const all=S.prods.filter(p=>matchesFilter(filterText,p));
-  const suggestions=buildSuggestions();
   let body;
   if(FLAT){
     body=all.length?[...all].sort(alpha).map(p=>pickRow(p,true)).join(''):`<div class="card">${t('noProducts')}</div>`;
@@ -831,8 +627,8 @@ function vPick(){
       return catHead('pick',c.id,c.name,nSel?`${nSel}/${ps.length}`:ps.length)+(isCol(colKey('pick',c.id))?'':ps.map(p=>pickRow(p,false)).join(''));
     }).join('')||`<div class="card">${t('noProducts')}</div>`;
   }
-  const suggestionsHtml=suggestions.length?`<h2>${t('suggestionsTitle')}</h2>${suggestions.map(s=>`<div class="card"><div class="grow"><b>${esc(s.product.description)}</b><div class="mu">${esc(s.reason)}</div></div><button class="b gh" onclick="addSuggestedProduct('${s.product.id}')">${t('add')}</button></div>`).join('')}`:'';
-  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${suggestionsHtml}${FLAT?'':expBar('pick')}${body}<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`;
+  const actions=`<div class="list-actions"><button class="b gh" onclick="suggestProductsForCurrentList()">${t('suggestProducts')}</button><button class="b rd" onclick="clearCurrentList()">${t('clearList')}</button></div>`;
+  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${actions}${FLAT?'':expBar('pick')}${body}<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`;
 }
 function openAddProductModal(){
   if(!S.listId)return alert(t('selectListFirst'));
