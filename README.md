@@ -6,4 +6,6 @@ Web app per lista della spesa con Supabase e GitHub Pages
 Per una nuova installazione, esegui `schema.sql` e `schema_update_quantity.sql`
 nel SQL Editor di Supabase. Per aggiornare un database già esistente e abilitare
 il salvataggio delle carte fedeltà, esegui `schema_update_loyalty.sql` nello
-stesso editor.
+stesso editor. Per abilitare template/ricorrenze, ordine percorso per lista e
+suggerimenti automatici basati sullo storico acquisti, esegui anche
+`schema_update_templates_route_suggestions.sql`.
