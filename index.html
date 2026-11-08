@@ -90,6 +90,8 @@ img.th{width:48px;height:48px;flex:none;border:1px solid var(--bd);border-radius
 .modal-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:16px}
 .list-actions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .list-actions .b{flex:1 1 140px}
+.template-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.template-actions .b{flex:1 1 160px;min-height:44px;white-space:normal}
 .filter-box{margin:0 0 8px}
 header .who{display:block;overflow:hidden;color:var(--mu);font-size:12px;font-weight:400;text-overflow:ellipsis}
 .hl{min-width:0;flex:1}
@@ -200,7 +202,8 @@ const TEXT={
     routeOrder:'Ordine percorso per lista',routeOrderHint:'L’ordine vale per la lista attiva e segue il percorso del supermercato.',
     dueTemplates:'Template da rigenerare oggi',generateNow:'Genera ora',suggestionsTitle:'Suggerimenti automatici',
     suggestionFromHistory:'Ultimo acquisto {days} giorni fa (media {avg} giorni)',suggestionSingle:'Comprato {days} giorni fa',
-    applyTemplateMode:'Modalità applicazione',templateApplied:'Template applicato.'
+    applyTemplateMode:'Modalità applicazione',templateApplied:'Template applicato.',
+    autoPrefilledList:'Lista precompilata con {count} prodotti in base allo storico acquisti.'
   },
   en:{
     appName:'Shopping List',appDescription:'Manage your shopping lists wherever you are.',productPhotoAlt:'Enlarged product photo',loyaltyCardAlt:'Loyalty card',email:'Email',password:'Password',showPassword:'Show password',hidePassword:'Hide password',
@@ -244,7 +247,8 @@ const TEXT={
     routeOrder:'Per-list route order',routeOrderHint:'Order applies to the active list and follows the store path.',
     dueTemplates:'Templates due today',generateNow:'Generate now',suggestionsTitle:'Automatic suggestions',
     suggestionFromHistory:'Last bought {days} days ago (avg {avg} days)',suggestionSingle:'Bought {days} days ago',
-    applyTemplateMode:'Apply mode',templateApplied:'Template applied.'
+    applyTemplateMode:'Apply mode',templateApplied:'Template applied.',
+    autoPrefilledList:'List prefilled with {count} products based on purchase history.'
   }
 };
 const t=(key,values={})=>String(TEXT[LANGUAGE][key]??TEXT.it[key]??key).replace(/\{(\w+)\}/g,(_,name)=>values[name]??'');
@@ -294,6 +298,7 @@ function updatePasswordToggleLabel(){
 applyLanguage();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const normalize=s=>String(s||'').toLowerCase().trim();
+const normCategory=s=>String(s||'Generale').trim()||'Generale';
 const matchesFilter=(text,prod)=>!text || normalize(prod.description).includes(normalize(text));
 const routePos=id=>S.catOrder.find(x=>x.category_id===id)?.position;
 const orderedCats=()=>[...S.cats].sort((a,b)=>{
@@ -434,6 +439,83 @@ function dueTemplates(){
   const today=new Date().toISOString().slice(0,10);
   return (S.templates||[]).filter(tp=>tp.next_run_date&&tp.next_run_date<=today);
 }
+function historyGroups(rows){
+  const groups=new Map();
+  for(const row of rows||[]){
+    const desc=normalize(row.product_description||'');
+    if(!desc)continue;
+    const cat=normalize(row.category_name||'Generale');
+    const key=`${desc}::${cat}`;
+    if(!groups.has(key))groups.set(key,{description:row.product_description,category_name:normCategory(row.category_name),events:[]});
+    groups.get(key).events.push({at:new Date(row.purchased_at),quantity:Number(row.quantity||1)});
+  }
+  return groups;
+}
+function dueProductsFromHistory(rows){
+  const groups=historyGroups(rows);
+  const now=new Date();
+  const out=[];
+  for(const group of groups.values()){
+    const events=group.events.sort((a,b)=>a.at-b.at);
+    if(events.length<2)continue;
+    const deltas=[];
+    for(let i=1;i<events.length;i++)deltas.push(daysBetween(events[i].at,events[i-1].at));
+    const avgDays=Math.max(1,Math.round(deltas.reduce((a,b)=>a+b,0)/deltas.length));
+    const last=events[events.length-1].at;
+    const daysSince=daysBetween(now,last);
+    const dueThreshold=Math.max(3,Math.round(avgDays*0.85));
+    if(daysSince<dueThreshold)continue;
+    const avgQty=Math.max(1,Math.round(events.reduce((a,b)=>a+b.quantity,0)/events.length));
+    const score=(daysSince/avgDays)*Math.min(events.length,8);
+    out.push({
+      description:group.description,
+      category_name:group.category_name,
+      quantity:avgQty,
+      score,
+      daysSince,
+      avgDays
+    });
+  }
+  return out.sort((a,b)=>b.score-a.score);
+}
+async function prefillListFromHistory(listId){
+  if(!S.user||!listId)return 0;
+  const {data,error}=await sb.from('purchase_history').select('product_description,category_name,quantity,purchased_at').eq('user_id',S.user.id).order('purchased_at',{ascending:false}).limit(800);
+  if(error||!data?.length)return 0;
+  const due=dueProductsFromHistory(data).slice(0,60);
+  if(!due.length)return 0;
+  const {data:existingCats}=await sb.from('categories').select('*').eq('list_id',listId).order('position');
+  const catMap=new Map((existingCats||[]).map(c=>[normalize(c.name),c]));
+  let catPos=(existingCats||[]).length;
+  for(const row of due){
+    const key=normalize(row.category_name);
+    if(catMap.has(key))continue;
+    const ins=await sb.from('categories').insert({list_id:listId,name:row.category_name,position:catPos++}).select().single();
+    if(ins.error)continue;
+    catMap.set(key,ins.data);
+  }
+  const {data:existingProds}=await sb.from('products').select('*').eq('list_id',listId);
+  const prodMap=new Map((existingProds||[]).map(p=>[`${normalize(p.description)}::${normalize(catName(p.category_id))}`,p]));
+  let inserted=0;
+  for(const row of due){
+    const cat=catMap.get(normalize(row.category_name));
+    if(!cat)continue;
+    const key=`${normalize(row.description)}::${normalize(cat.name)}`;
+    let p=prodMap.get(key);
+    if(!p){
+      const ins=await sb.from('products').insert({list_id:listId,description:row.description,category_id:cat.id,image_url:null}).select().single();
+      if(ins.error)continue;
+      p=ins.data;
+      prodMap.set(key,p);
+    }
+    const up=await sb.from('list_items').upsert({list_id:listId,product_id:p.id,quantity:Number(row.quantity||1),status:'to_buy',updated_at:new Date().toISOString()},{onConflict:'list_id,product_id'});
+    if(!up.error)inserted++;
+  }
+  const {data:allCats}=await sb.from('categories').select('*').eq('list_id',listId).order('position');
+  const orderRows=(allCats||[]).map((c,idx)=>({list_id:listId,category_id:c.id,position:idx}));
+  if(orderRows.length)await sb.from('list_category_order').upsert(orderRows,{onConflict:'list_id,category_id'});
+  return inserted;
+}
 async function reload(){
   const [c,p,l,tp]=await Promise.all([
     sb.from('categories').select('*').order('position'),
@@ -451,7 +533,7 @@ async function reload(){
     const [i,co,h]=await Promise.all([
       sb.from('list_items').select('*').eq('list_id',S.listId),
       sb.from('list_category_order').select('*').eq('list_id',S.listId).order('position'),
-      S.user?sb.from('purchase_history').select('product_id,purchased_at').eq('user_id',S.user.id).eq('list_id',S.listId).order('purchased_at',{ascending:false}):Promise.resolve({data:[]})
+      S.user?sb.from('purchase_history').select('product_id,purchased_at,product_description,category_name,quantity').eq('user_id',S.user.id).order('purchased_at',{ascending:false}).limit(800):Promise.resolve({data:[]})
     ]);
     S.items=i.data||[];
     S.catOrder=co.data||[];
@@ -502,7 +584,7 @@ function openTemplatesModal(){
   showDialog(`<div class="modal-panel"><h3>${t('templatesRecurring')}</h3>
   <p>${t('templateCreateHint')}</p>
   <div class="row"><button class="b" onclick="openCreateTemplateModal()">${t('saveAsTemplate')}</button></div>
-  ${templates.length?templates.map(tp=>`<div class="card col" style="margin-top:10px"><div class="row"><b>${esc(tp.name)}</b><span class="mu">${recurrenceLabel(tp.recurrence)}</span>${tp.next_run_date?`<span class="mu">• ${esc(tp.next_run_date)}</span>`:''}</div><div class="row"><button class="b gh" onclick="createListFromTemplate('${tp.id}')">${t('createFromTemplate')}</button><button class="b gh" onclick="applyTemplateToCurrentList('${tp.id}','add_missing')">${t('applyAddMissing')}</button><button class="b gh" onclick="applyTemplateToCurrentList('${tp.id}','replace')">${t('applyReplace')}</button><button class="b rd" onclick="deleteTemplate('${tp.id}')">${t('templateDelete')}</button></div></div>`).join(''):`<div class="card">${t('templatesEmpty')}</div>`}
+  ${templates.length?templates.map(tp=>`<div class="card col" style="margin-top:10px"><div class="row"><b>${esc(tp.name)}</b><span class="mu">${recurrenceLabel(tp.recurrence)}</span>${tp.next_run_date?`<span class="mu">• ${esc(tp.next_run_date)}</span>`:''}</div><div class="template-actions"><button class="b gh" onclick="createListFromTemplate('${tp.id}')">${t('createFromTemplate')}</button><button class="b gh" onclick="applyTemplateToCurrentList('${tp.id}','add_missing')">${t('applyAddMissing')}</button><button class="b gh" onclick="applyTemplateToCurrentList('${tp.id}','replace')">${t('applyReplace')}</button><button class="b rd" onclick="deleteTemplate('${tp.id}')">${t('templateDelete')}</button></div></div>`).join(''):`<div class="card">${t('templatesEmpty')}</div>`}
   <div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('closeButton')}</button></div></div>`);
 }
 function openCreateTemplateModal(){
@@ -635,33 +717,18 @@ async function deleteTemplate(templateId){
 /* ---- suggerimenti automatici ---- */
 function daysBetween(a,b){return Math.max(0,Math.round((a-b)/86400000));}
 function buildSuggestions(){
-  const groups=new Map();
-  for(const row of (S.history||[])){
-    if(!row.product_id)continue;
-    if(!groups.has(row.product_id))groups.set(row.product_id,[]);
-    groups.get(row.product_id).push(new Date(row.purchased_at));
-  }
+  const due=dueProductsFromHistory(S.history||[]);
+  const dueMap=new Map(due.map(d=>[`${normalize(d.description)}::${normalize(d.category_name)}`,d]));
   const now=new Date();
   const activeIds=new Set((S.items||[]).map(i=>i.product_id));
   const out=[];
-  for(const [productId,dates] of groups){
-    const p=prod(productId);
-    if(!p||activeIds.has(productId))continue;
-    const sorted=dates.sort((a,b)=>a-b);
-    const count=sorted.length;
-    const last=sorted[sorted.length-1];
-    const daysSince=daysBetween(now,last);
-    let avg=14;
-    if(count>1){
-      const deltas=[];
-      for(let i=1;i<sorted.length;i++)deltas.push(daysBetween(sorted[i],sorted[i-1]));
-      avg=Math.max(1,Math.round(deltas.reduce((a,b)=>a+b,0)/deltas.length));
-    }
-    const shouldSuggest=(count>1&&daysSince>=Math.max(3,Math.round(avg*0.8)))||(count===1&&daysSince>=14);
-    if(!shouldSuggest)continue;
-    const reason=count>1?t('suggestionFromHistory',{days:daysSince,avg}):t('suggestionSingle',{days:daysSince});
-    const score=(daysSince/Math.max(avg,1))*Math.min(count,5);
-    out.push({product:p,reason,score});
+  for(const p of (S.prods||[])){
+    if(activeIds.has(p.id))continue;
+    const key=`${normalize(p.description)}::${normalize(catName(p.category_id))}`;
+    const hit=dueMap.get(key);
+    if(!hit)continue;
+    const reason=t('suggestionFromHistory',{days:hit.daysSince,avg:hit.avgDays});
+    out.push({product:p,reason,score:hit.score});
   }
   return out.sort((a,b)=>b.score-a.score).slice(0,5);
 }
@@ -683,7 +750,18 @@ function vLists(){
   <div class="list-actions"><button class="b gh" onclick="openTemplatesModal()">${t('templatesRecurring')}</button>${hasList?`<button class="b gh" onclick="openExportModal()">${t('exportJson')}</button><button class="b gh" onclick="openImportModal()">${t('importJson')}</button>`:`<button class="b gh" onclick="alert('${t('exportImportDisabled')}')">${t('exportJson')}/${t('importJson')}</button>`}</div>
   ${due.length?`<h2>${t('dueTemplates')}</h2>${due.map(tp=>`<div class="card"><div class="grow"><b>${esc(tp.name)}</b><div class="mu">${recurrenceLabel(tp.recurrence)} • ${esc(tp.next_run_date||'')}</div></div><button class="b" onclick="runDueTemplate('${tp.id}')">${t('generateNow')}</button></div>`).join('')}`:''}`;
 }
-async function addList(){const n=$('nl').value.trim();if(!n) return;const r=await sb.from('shopping_lists').insert({name:n}).select().single();if(r.data){S.listId=r.data.id;localStorage.setItem('listId',S.listId)}reload();}
+async function addList(){
+  const n=$('nl').value.trim();
+  if(!n) return;
+  const r=await sb.from('shopping_lists').insert({name:n}).select().single();
+  if(r.data){
+    S.listId=r.data.id;
+    localStorage.setItem('listId',S.listId);
+    const inserted=await prefillListFromHistory(S.listId);
+    if(inserted>0)alert(t('autoPrefilledList',{count:inserted}));
+  }
+  reload();
+}
 function selList(id){S.listId=id;localStorage.setItem('listId',id);reload();}
 async function delList(id){if(confirm(t('deleteListConfirm'))){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
 
