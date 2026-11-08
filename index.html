@@ -192,6 +192,7 @@ const TEXT={
     addProductError:'Errore durante l’aggiunta del prodotto.',cartRemaining:'Mancano {remaining} prodotti su {total}',
     closeCart:'Chiudi carrello',closeCartConfirm:'Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.',
     noListSelected:'Nessuna lista selezionata.',loginError:'Controlla la mail per confermare (se richiesto).',
+    signInToCreateList:'Accedi prima di creare una lista.',
     routeOrder:'Ordine percorso per lista',routeOrderHint:'L’ordine vale per la lista attiva e segue il percorso del supermercato.',
     suggestProducts:'Suggerisci',clearList:'Azzera lista',
     clearListConfirm:'Azzera la lista corrente? Verranno rimossi tutti gli articoli selezionati.',
@@ -231,6 +232,7 @@ const TEXT={
     addProductError:'Error adding the product.',cartRemaining:'{remaining} of {total} items remaining',
     closeCart:'Finish shopping',closeCartConfirm:'Finish shopping? Purchased items will be removed from the list.',
     noListSelected:'No list selected.',loginError:'Check your email to confirm your account (if required).',
+    signInToCreateList:'Sign in before creating a list.',
     routeOrder:'Per-list route order',routeOrderHint:'Order applies to the active list and follows the store path.',
     suggestProducts:'Suggest',clearList:'Clear list',
     clearListConfirm:'Clear current list? All selected items will be removed.',
@@ -371,7 +373,7 @@ function openSettings(){
 }
 async function saveLoyalty(file){
   if(!file)return;
-  if(!S.user)return alert(t('signInToSaveCard'));
+  if(!S.user)return alert(t('signInToCreateList'));
   try{
     const imageData=await new Promise((resolve,reject)=>{
       const img=new Image(),u=URL.createObjectURL(file);
@@ -554,8 +556,9 @@ function vLists(){
 async function addList(){
   const n=$('nl').value.trim();
   if(!n) return;
+  if(!S.user)return alert(t('signInToSaveCard'));
   try{
-    const r=await sb.from('shopping_lists').insert({name:n}).select().single();
+    const r=await sb.from('shopping_lists').insert({name:n,owner_id:S.user.id}).select().single();
     if(r.error)throw r.error;
     if(r.data){
       S.listId=r.data.id;
