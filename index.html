@@ -179,6 +179,7 @@ const TEXT={
     chooseJson:'Seleziona un file JSON da importare.',confirmImport:'ATTENZIONE: questa operazione cancellerà tutte le categorie e i prodotti attuali della lista selezionata. Procedere?',
     invalidJson:'Il file non è un JSON valido.',invalidJsonFormat:'Formato JSON non valido.',noList:'Crea prima una lista.',
     newList:'Nuova lista (es. Esselunga)',create:'Crea',exportImportDisabled:'Seleziona una lista prima di esportare/importare.',
+    createListError:'Errore durante la creazione della lista.',
     deleteListConfirm:'Eliminare la lista?',newCategory:'Nuova categoria',add:'Aggiungi',categoryOrder:'Ordine di visualizzazione nella spesa.',
     rename:'Rinomina',delete:'Elimina',newName:'Nuovo nome:',categoryInUse:'Categoria in uso da dei prodotti.',moveUp:'Sposta su',moveDown:'Sposta giù',deleteCategoryConfirm:'Eliminare la categoria?',
     searchProduct:'Cerca prodotto...',noProducts:'Nessun prodotto trovato.',description:'Descrizione',productDescription:'Descrizione prodotto',
@@ -217,6 +218,7 @@ const TEXT={
     chooseJson:'Select a JSON file to import.',confirmImport:'WARNING: this will delete all existing categories and products in the selected list. Continue?',
     invalidJson:'The file is not valid JSON.',invalidJsonFormat:'Invalid JSON format.',noList:'Create a list first.',
     newList:'New list (e.g. Grocery store)',create:'Create',exportImportDisabled:'Select a list before exporting or importing.',
+    createListError:'Error creating the list.',
     deleteListConfirm:'Delete this list?',newCategory:'New category',add:'Add',categoryOrder:'Display order in the shopping view.',
     rename:'Rename',delete:'Delete',newName:'New name:',categoryInUse:'Category is in use by products.',moveUp:'Move up',moveDown:'Move down',deleteCategoryConfirm:'Delete this category?',
     searchProduct:'Search products...',noProducts:'No products found.',description:'Description',productDescription:'Product description',
@@ -552,12 +554,18 @@ function vLists(){
 async function addList(){
   const n=$('nl').value.trim();
   if(!n) return;
-  const r=await sb.from('shopping_lists').insert({name:n}).select().single();
-  if(r.data){
-    S.listId=r.data.id;
-    localStorage.setItem('listId',S.listId);
+  try{
+    const r=await sb.from('shopping_lists').insert({name:n}).select().single();
+    if(r.error)throw r.error;
+    if(r.data){
+      S.listId=r.data.id;
+      localStorage.setItem('listId',S.listId);
+      $('nl').value='';
+    }
+    reload();
+  }catch(e){
+    alert(e.message||t('createListError'));
   }
-  reload();
 }
 function selList(id){S.listId=id;localStorage.setItem('listId',id);reload();}
 async function delList(id){if(confirm(t('deleteListConfirm'))){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
