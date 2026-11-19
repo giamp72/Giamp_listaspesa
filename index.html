@@ -18,11 +18,13 @@
 :root[data-theme=light]{--category-bg:#d9eaff;--category-count:#415d7c}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;min-height:100%;padding:0;background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,sans-serif;font-size:15px;letter-spacing:-.01em}
-body{padding:0 0 calc(100px + env(safe-area-inset-bottom));}
+body{display:flex;height:100vh;height:100dvh;flex-direction:column}
+#app:not([hidden]){display:flex;min-height:0;flex:1;flex-direction:column}
+.app-content{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain}
 header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(10px + env(safe-area-inset-top)) max(16px,calc((100vw - 760px)/2 + 16px)) 12px;background:var(--bar);border-bottom:1px solid var(--bd);color:var(--tx);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%)}
 header h1{overflow:hidden;margin:0;white-space:nowrap;text-overflow:ellipsis;font-size:19px;font-weight:700;letter-spacing:-.035em}
 main{max-width:760px;margin:0 auto;padding:14px 16px 24px}
-nav{position:fixed;bottom:max(10px,env(safe-area-inset-bottom));left:50%;z-index:20;display:flex;width:min(560px,calc(100% - 28px));justify-content:space-around;gap:2px;padding:7px 8px calc(7px + env(safe-area-inset-bottom));transform:translateX(-50%);border:1px solid var(--bd);border-radius:28px;background:var(--bar);box-shadow:var(--shadow);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%)}
+nav{display:flex;width:min(560px,calc(100% - 28px));flex:none;justify-content:space-around;gap:2px;margin:0 auto max(10px,env(safe-area-inset-bottom));padding:7px 8px;border:1px solid var(--bd);border-radius:28px;background:var(--bar);box-shadow:var(--shadow);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%)}
 nav button{display:flex;min-width:0;flex:1;flex-direction:column;align-items:center;gap:3px;padding:5px 2px;border:0;border-radius:18px;background:transparent;color:var(--mu);font-family:inherit;font-size:10px;font-weight:500;line-height:1.1;cursor:pointer;transition:background .18s ease,color .18s ease}
 nav button span{font-size:19px;line-height:1;filter:none;transition:transform .18s ease}
 nav button.on{background:var(--selBg);color:var(--accent);font-weight:700}
@@ -136,7 +138,10 @@ header .who{display:block;overflow:hidden;color:var(--mu);font-size:12px;font-we
       <button class="b gh" onclick="openSettings()" title="Impostazioni" aria-label="Impostazioni" data-i18n-label="settings"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.7 1l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.7-1l-1.7.7-1.4-2.4 1.4-1.1a8 8 0 0 1 0-2l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.7-1l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.7 1l1.7-.7 1.4 2.4-1.4 1.1a8 8 0 0 1 0 2Z" transform="translate(-1 -1) scale(1.08)"/></svg></button>
     </div>
   </header>
-  <main id="view"></main>
+  <div class="app-content">
+    <main id="view"></main>
+    <footer class="app-footer"><span data-i18n="developedBy">Developed by</span> <a href="mailto:giamp72@gmail.com">giamp72@gmail.com</a></footer>
+  </div>
   <nav>
     <button data-p="lists" onclick="go('lists')" data-i18n="navLists"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 3v3m8-3v3M8 10h8m-8 4h8m-8 4h5"/></svg>Liste</button>
     <button data-p="cats" onclick="go('cats')" data-i18n="navCategories"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.6 13.4 13 21l-10-10V3h8l9.6 9.6a.6.6 0 0 1 0 .8Z"/><circle cx="7.5" cy="7.5" r="1"/></svg>Categorie</button>
@@ -144,7 +149,6 @@ header .who{display:block;overflow:hidden;color:var(--mu);font-size:12px;font-we
     <button data-p="pick" onclick="go('pick')" data-i18n="navPick"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>Lista</button>
     <button data-p="shop" onclick="go('shop')" data-i18n="navShop"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 9h18l-2 12H5L3 9Z"/><path d="M8 9a4 4 0 0 1 8 0M9 13v4m6-4v4"/></svg>Spesa</button>
   </nav>
-  <footer class="app-footer"><span data-i18n="developedBy">Developed by</span> <a href="mailto:giamp72@gmail.com">giamp72@gmail.com</a></footer>
 </div>
 <div id="photoModal" class="modal" onclick="closePhotoModal(event)"><button class="close" aria-label="Chiudi" data-i18n-label="close" onclick="hidePhotoModal()">×</button><img id="photoModalImg" alt="Foto prodotto ingrandita" data-i18n-alt="productPhotoAlt"></div>
 <div id="loyaltyModal" class="modal card-full" onclick="hideLoyalty()"><button class="close" aria-label="Chiudi" data-i18n-label="close" onclick="hideLoyalty()">×</button><img id="loyaltyImg" alt="Scheda fedeltà" data-i18n-alt="loyaltyCardAlt"></div>
