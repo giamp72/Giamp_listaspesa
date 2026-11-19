@@ -159,7 +159,7 @@ const SUPABASE_URL='https://tdagxuyvckiageppiwbh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const sharedListId=new URLSearchParams(location.search).get('list');
-let S={cats:[],prods:[],lists:[],items:[],catOrder:[],history:[],page:'lists',listId:sharedListId||localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
+let S={cats:[],prods:[],lists:[],items:[],catOrder:[],history:[],historyError:null,page:'lists',listId:sharedListId||localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
 let listChannel=null,watchedListId=null,listRefreshTimer=null;
 let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch{COL={}}
 let filterText='';
@@ -207,7 +207,8 @@ const TEXT={
     routeOrder:'Ordine percorso per lista',routeOrderHint:'L’ordine vale per la lista attiva e segue il percorso del supermercato.',
     suggestProducts:'Suggerisci',clearList:'Azzera lista',
     clearListConfirm:'Azzera la lista corrente? Verranno rimossi tutti gli articoli selezionati.',
-    suggestedAdded:'Aggiunti {count} prodotti suggeriti alla lista.',noSuggested:'Nessun suggerimento disponibile al momento.'
+    suggestedAdded:'Aggiunti {count} prodotti suggeriti alla lista.',noSuggested:'Nessun suggerimento disponibile. Servono almeno due acquisti dello stesso prodotto, registrati con “Chiudi carrello”, e deve essere passato abbastanza tempo dall’ultimo acquisto.',
+    historyLoadError:'Impossibile caricare lo storico acquisti. Verifica la connessione e la configurazione del database:',historySaveError:'Impossibile salvare lo storico acquisti. Il carrello non è stato chiuso:',suggestionSaveError:'Impossibile aggiungere i prodotti suggeriti:',closeCartError:'Impossibile chiudere il carrello:'
   },
   en:{
     appName:'Shopping List',appDescription:'Manage your shopping lists wherever you are.',productPhotoAlt:'Enlarged product photo',loyaltyCardAlt:'Loyalty card',email:'Email',password:'Password',showPassword:'Show password',hidePassword:'Hide password',
@@ -249,7 +250,8 @@ const TEXT={
     routeOrder:'Per-list route order',routeOrderHint:'Order applies to the active list and follows the store path.',
     suggestProducts:'Suggest',clearList:'Clear list',
     clearListConfirm:'Clear current list? All selected items will be removed.',
-    suggestedAdded:'Added {count} suggested products to the list.',noSuggested:'No suggestions available right now.'
+    suggestedAdded:'Added {count} suggested products to the list.',noSuggested:'No suggestions available. At least two purchases of the same product must be recorded using “Finish shopping”, and enough time must have passed since the last purchase.',
+    historyLoadError:'Unable to load purchase history. Check your connection and database configuration:',historySaveError:'Unable to save purchase history. Shopping was not finished:',suggestionSaveError:'Unable to add suggested products:',closeCartError:'Unable to finish shopping:'
   }
 };
 const t=(key,values={})=>String(TEXT[LANGUAGE][key]??TEXT.it[key]??key).replace(/\{(\w+)\}/g,(_,name)=>values[name]??'');
@@ -487,11 +489,13 @@ async function reload(){
     S.items=i.data||[];
     S.catOrder=co.data||[];
     S.history=h.data||[];
+    S.historyError=h.error||null;
     await ensureListRouteOrder();
   }else{
     S.items=[];
     S.catOrder=[];
     S.history=[];
+    S.historyError=null;
   }
   render();
 }
@@ -537,6 +541,7 @@ async function importJsonToCurrentList(data){if(!S.listId) throw new Error(t('no
 
 /* ---- suggerimenti automatici ---- */
 function daysBetween(a,b){return Math.max(0,Math.round((a-b)/86400000));}
+let suggestionsPending=false;
 function buildSuggestions(limit=5){
   const due=dueProductsFromHistory(S.history||[]);
   const dueMap=new Map(due.map(d=>[`${normalize(d.description)}::${normalize(d.category_name)}`,d]));
@@ -552,21 +557,33 @@ function buildSuggestions(limit=5){
   return out.sort((a,b)=>b.score-a.score).slice(0,limit);
 }
 async function suggestProductsForCurrentList(){
-  if(!S.listId)return;
+  if(!S.listId||suggestionsPending)return;
+  if(S.historyError)return alert(`${t('historyLoadError')} ${S.historyError.message}`);
   const suggestions=buildSuggestions(40);
   if(!suggestions.length)return alert(t('noSuggested'));
-  let inserted=0;
-  for(const s of suggestions){
-    const exists=S.items.find(i=>i.product_id===s.product.id);
-    if(exists)continue;
-    const row={id:crypto.randomUUID(),list_id:S.listId,product_id:s.product.id,quantity:1,status:'to_buy'};
-    S.items=[...S.items,row];
-    const {error}=await sb.from('list_items').insert(row);
-    if(!error)inserted++;
+  const listId=S.listId;
+  const button=$('suggestProductsButton');
+  suggestionsPending=true;
+  if(button)button.disabled=true;
+  try{
+    const rows=suggestions.map(s=>({id:crypto.randomUUID(),list_id:listId,product_id:s.product.id,quantity:1,status:'to_buy'}));
+    const {error}=await sb.from('list_items').insert(rows);
+    if(error)throw error;
+    if(S.listId===listId){
+      const activeIds=new Set(S.items.map(item=>item.product_id));
+      S.items=[...S.items,...rows.filter(row=>!activeIds.has(row.product_id))];
+      render();
+    }
+    alert(t('suggestedAdded',{count:rows.length}));
+  }catch(error){
+    alert(`${t('suggestionSaveError')} ${error.message}`);
+    await reload();
+  }finally{
+    suggestionsPending=false;
+    if(button)button.disabled=false;
+    const currentButton=$('suggestProductsButton');
+    if(currentButton)currentButton.disabled=false;
   }
-  render();
-  if(inserted)alert(t('suggestedAdded',{count:inserted}));
-  else alert(t('noSuggested'));
 }
 async function clearCurrentList(){
   if(!S.listId)return;
@@ -709,7 +726,7 @@ function vPick(){
       return catHead('pick',c.id,c.name,nSel?`${nSel}/${ps.length}`:ps.length)+(isCol(colKey('pick',c.id))?'':ps.map(p=>pickRow(p,false)).join(''));
     }).join('')||`<div class="card">${t('noProducts')}</div>`;
   }
-  const actions=`<div class="list-actions"><button class="b gh" onclick="suggestProductsForCurrentList()">${t('suggestProducts')}</button><button class="b rd" onclick="clearCurrentList()">${t('clearList')}</button></div>`;
+  const actions=`<div class="list-actions"><button id="suggestProductsButton" class="b gh" ${suggestionsPending?'disabled':''} onclick="suggestProductsForCurrentList()">${t('suggestProducts')}</button><button class="b rd" onclick="clearCurrentList()">${t('clearList')}</button></div>`;
   $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${actions}${FLAT?'':expBar('pick')}${body}${canEditCurrentList()?`<button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`:''}`;
 }
 function openAddProductModal(){
@@ -788,9 +805,11 @@ async function closeCart(){
         purchased_at:now
       };
     });
-    await sb.from('purchase_history').insert(rows);
+    const {error}=await sb.from('purchase_history').insert(rows);
+    if(error){alert(`${t('historySaveError')} ${error.message}`);return;}
   }
-  await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');
+  const {error}=await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');
+  if(error){alert(`${t('closeCartError')} ${error.message}`);return;}
   reload();
 }
 function openPhotoModal(url){$('photoModalImg').src=url;$('photoModal').classList.add('open');}
