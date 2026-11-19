@@ -9,8 +9,9 @@ il salvataggio delle carte fedeltà, esegui `schema_update_loyalty.sql` nello
 stesso editor. Per abilitare template/ricorrenze, ordine percorso per lista e
 suggerimenti automatici basati sullo storico acquisti, esegui anche
 `schema_update_templates_route_suggestions.sql`. Per condividere le liste con
-condivisione con utenti registrati e aggiornamenti in tempo reale, esegui anche
+utenti registrati e aggiornamenti in tempo reale, esegui anche
 `schema_update_shared_lists.sql`. Il proprietario può invitare o rimuovere
 collaboratori dall’elenco Liste usando l’email del loro account. Gli invitati
-devono accedere all’app; possono modificare gli articoli della spesa condivisa,
-mentre categorie e prodotti restano modificabili solo dal proprietario.
+devono accedere all’app; possono modificare categorie, prodotti e gli articoli
+della spesa condivisa. Solo il proprietario può invitare utenti, importare JSON
+o eliminare la lista.

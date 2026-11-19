@@ -100,49 +100,24 @@ for delete
 to authenticated
 using (owner_id = auth.uid());
 
-create policy "members view accessible categories"
-on public.categories
-for select
-to authenticated
-using (public.can_access_shopping_list(list_id));
-
-create policy "owners manage categories"
+create policy "members manage accessible categories"
 on public.categories
 for all
 to authenticated
-using (
-  exists (
-    select 1 from public.shopping_lists l
-    where l.id = categories.list_id and l.owner_id = auth.uid()
-  )
-)
-with check (
-  exists (
-    select 1 from public.shopping_lists l
-    where l.id = categories.list_id and l.owner_id = auth.uid()
-  )
-);
+using (public.can_access_shopping_list(list_id))
+with check (public.can_access_shopping_list(list_id));
 
-create policy "members view accessible products"
-on public.products
-for select
-to authenticated
-using (public.can_access_shopping_list(list_id));
-
-create policy "owners manage products"
+create policy "members manage accessible products"
 on public.products
 for all
 to authenticated
-using (
-  exists (
-    select 1 from public.shopping_lists l
-    where l.id = products.list_id and l.owner_id = auth.uid()
-  )
-)
+using (public.can_access_shopping_list(list_id))
 with check (
-  exists (
+  public.can_access_shopping_list(list_id)
+  and exists (
     select 1 from public.shopping_lists l
-    where l.id = products.list_id and l.owner_id = auth.uid()
+    join public.categories c on c.id = products.category_id
+    where l.id = products.list_id and c.list_id = products.list_id
   )
 );
 
@@ -160,22 +135,11 @@ with check (
   )
 );
 
-create policy "members view order in accessible lists"
-on public.list_category_order
-for select
-to authenticated
-using (public.can_access_shopping_list(list_id));
-
-create policy "owners manage order in accessible lists"
+create policy "members manage order in accessible lists"
 on public.list_category_order
 for all
 to authenticated
-using (
-  exists (
-    select 1 from public.shopping_lists l
-    where l.id = list_category_order.list_id and l.owner_id = auth.uid()
-  )
-)
+using (public.can_access_shopping_list(list_id))
 with check (
   public.can_access_shopping_list(list_id)
   and exists (

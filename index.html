@@ -414,7 +414,7 @@ async function delLoyalty(){if(!confirm(t('removeCardConfirm')))return;const {er
 function showLoyalty(){const d=S.loyaltyImg;if(!d)return alert(t('noCard'));hideDialog();$('loyaltyImg').src=d;$('loyaltyModal').classList.add('open');}
 function hideLoyalty(){$('loyaltyModal').classList.remove('open');$('loyaltyImg').src='';}
 async function ensureListRouteOrder(){
-  if(!S.listId||!S.cats.length||!canManageCurrentList())return;
+  if(!S.listId||!S.cats.length||!canEditCurrentList())return;
   const existing=new Map((S.catOrder||[]).map(x=>[x.category_id,x.position]));
   const missing=S.cats.filter(c=>!existing.has(c.id));
   if(!missing.length)return;
@@ -632,8 +632,9 @@ async function delList(id){if(confirm(t('deleteListConfirm'))){await sb.from('sh
 /* ---- categorie ---- */
 let selectedCatId=null;
 function canManageCurrentList(){return curList()?.owner_id===S.user?.id;}
+function canEditCurrentList(){return !!curList()&&!!S.user;}
 function vCats(){
-  const cs=orderedCats(),canManage=canManageCurrentList();
+  const cs=orderedCats(),canManage=canEditCurrentList();
   const selected=selectedCatId&&cs.some(c=>c.id===selectedCatId)?selectedCatId:null;
   if(!selected&&cs.length)selectedCatId=cs[0].id;
   const activeSelected=selected||selectedCatId;
@@ -655,10 +656,10 @@ async function delCat(id){if(!confirm(t('deleteCategoryConfirm'))) return;const 
 
 /* ---- prodotti ---- */
 const filterBox=id=>`<div class="card filter-box"><input id="${id}" placeholder="${t('searchProduct')}" value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>`;
-const prodRow=(p,showCat,editable=canManageCurrentList())=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div>${showCat?`<div class="product-meta">${esc(catName(p.category_id))}</div>`:''}</div>${editable?`<div class="small-actions"><button class="b gh" aria-label="${t('editProduct')}" onclick="editProd('${p.id}')">${icon('edit')}</button><button class="b rd" aria-label="${t('delete')}" onclick="delProd('${p.id}')">${icon('trash')}</button></div>`:''}</div></div>`;
+const prodRow=(p,showCat,editable=canEditCurrentList())=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div>${showCat?`<div class="product-meta">${esc(catName(p.category_id))}</div>`:''}</div>${editable?`<div class="small-actions"><button class="b gh" aria-label="${t('editProduct')}" onclick="editProd('${p.id}')">${icon('edit')}</button><button class="b rd" aria-label="${t('delete')}" onclick="delProd('${p.id}')">${icon('trash')}</button></div>`:''}</div></div>`;
 function vProds(){
   const cats=orderedCats();
-  const canManage=canManageCurrentList();
+  const canManage=canEditCurrentList();
   const all=S.prods.filter(p=>matchesFilter(filterText,p));
   let listHtml;
   if(FLAT){
@@ -706,10 +707,11 @@ function vPick(){
     }).join('')||`<div class="card">${t('noProducts')}</div>`;
   }
   const actions=`<div class="list-actions"><button class="b gh" onclick="suggestProductsForCurrentList()">${t('suggestProducts')}</button><button class="b rd" onclick="clearCurrentList()">${t('clearList')}</button></div>`;
-  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${actions}${FLAT?'':expBar('pick')}${body}${canManageCurrentList()?`<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`:''}`;
+  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${actions}${FLAT?'':expBar('pick')}${body}${canEditCurrentList()?`<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`:''}`;
 }
 function openAddProductModal(){
   if(!S.listId)return alert(t('selectListFirst'));
+  if(!canEditCurrentList())return alert(t('shareManageOwnerOnly'));
   const cats=orderedCats();
   if(!cats.length)return alert(t('addProductFirst'));
   showDialog(`<form class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="addProductTitle" onsubmit="event.preventDefault(); addProductFromPick()"><h3 id="addProductTitle">${t('addProduct')}</h3><label for="pickProductDesc">${t('description')}</label><input id="pickProductDesc" placeholder="${t('productDescription')}" required><label for="pickProductCat">${t('category')}</label><select id="pickProductCat" required>${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="modal-actions"><button type="button" class="b gh" onclick="hideDialog()">${t('cancel')}</button><button id="pickProductSubmit" type="submit" class="b">${t('add')}</button></div></form>`);
