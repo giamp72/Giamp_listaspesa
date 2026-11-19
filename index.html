@@ -103,7 +103,7 @@ header .who{display:block;overflow:hidden;color:var(--mu);font-size:12px;font-we
 .modal.card-full{padding:0;background:#fff}
 .modal.card-full img{width:100%;max-width:100%;max-height:100dvh;border-radius:0;background:#fff;box-shadow:none;object-fit:contain}
 @supports not (backdrop-filter:blur(1px)){header,nav,.modal-panel{background:var(--card)}}
-@media (max-width:420px){main{padding-right:12px;padding-left:12px}.card{padding:11px 12px}.qtybox{gap:5px}.list-actions{flex-direction:column}.shop-view .product-name{font-size:17px}}
+@media (max-width:420px){main{padding-right:12px;padding-left:12px}.card{padding:11px 12px}.qtybox{gap:5px}.list-actions{flex-direction:column}.list-actions .b{flex:0 0 auto}.pick-actions{flex-direction:row;flex-wrap:nowrap}.pick-actions .b{min-width:0;min-height:44px;flex:1 1 0;padding:9px 8px;font-size:13px;white-space:normal}.shop-view .product-name{font-size:17px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
 .icon{display:inline-block;width:19px;height:19px;flex:none;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .camera-label{gap:7px}
@@ -726,7 +726,7 @@ function vPick(){
       return catHead('pick',c.id,c.name,nSel?`${nSel}/${ps.length}`:ps.length)+(isCol(colKey('pick',c.id))?'':ps.map(p=>pickRow(p,false)).join(''));
     }).join('')||`<div class="card">${t('noProducts')}</div>`;
   }
-  const actions=`<div class="list-actions"><button id="suggestProductsButton" class="b gh" ${suggestionsPending?'disabled':''} onclick="suggestProductsForCurrentList()">${t('suggestProducts')}</button><button class="b rd" onclick="clearCurrentList()">${t('clearList')}</button></div>`;
+  const actions=`<div class="list-actions pick-actions"><button id="suggestProductsButton" class="b gh" ${suggestionsPending?'disabled':''} onclick="suggestProductsForCurrentList()">${t('suggestProducts')}</button><button class="b rd" onclick="clearCurrentList()">${t('clearList')}</button></div>`;
   $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${actions}${FLAT?'':expBar('pick')}${body}${canEditCurrentList()?`<button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`:''}`;
 }
 function openAddProductModal(){
