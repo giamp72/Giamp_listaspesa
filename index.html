@@ -195,7 +195,7 @@ const TEXT={
     closeCart:'Chiudi carrello',closeCartConfirm:'Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.',
     noListSelected:'Nessuna lista selezionata.',loginError:'Controlla la mail per confermare (se richiesto).',
     signInToCreateList:'Accedi prima di creare una lista.',
-    shareList:'Condividi',shareListTitle:'Lista della spesa: {name}',shareListText:'Apri e aggiorna insieme a me la lista “{name}”.',shareLinkCopied:'Link copiato. Puoi inviarlo a chi vuoi.',copyShareLink:'Copia e condividi questo link:',shareError:'Errore durante la condivisione della lista.',
+    shareList:'Condividi',shareListTitle:'Condividi “{name}”',shareEmail:'Email dell’utente registrato',invite:'Invita',sharedWith:'Condivisa con',listOwner:'Proprietario',removeMember:'Rimuovi',removeMemberConfirm:'Rimuovere questo utente dalla lista?',shareInviteSuccess:'Utente aggiunto alla lista.',shareRemoveSuccess:'Utente rimosso dalla lista.',shareManageOwnerOnly:'Solo il proprietario può invitare o rimuovere utenti.',shareEmailRequired:'Inserisci l’email di un utente registrato.',shareMemberError:'Errore durante il caricamento degli utenti della lista.',shareInviteError:'Impossibile invitare l’utente.',shareRemoveError:'Impossibile rimuovere l’utente.',
     shareSyncError:'Errore nella sincronizzazione della lista:',
     routeOrder:'Ordine percorso per lista',routeOrderHint:'L’ordine vale per la lista attiva e segue il percorso del supermercato.',
     suggestProducts:'Suggerisci',clearList:'Azzera lista',
@@ -237,7 +237,7 @@ const TEXT={
     closeCart:'Finish shopping',closeCartConfirm:'Finish shopping? Purchased items will be removed from the list.',
     noListSelected:'No list selected.',loginError:'Check your email to confirm your account (if required).',
     signInToCreateList:'Sign in before creating a list.',
-    shareList:'Share',shareListTitle:'Shopping list: {name}',shareListText:'Open and update the “{name}” list with me.',shareLinkCopied:'Link copied. You can send it to anyone.',copyShareLink:'Copy and share this link:',shareError:'Error sharing the list.',
+    shareList:'Share',shareListTitle:'Share “{name}”',shareEmail:'Email of a registered user',invite:'Invite',sharedWith:'Shared with',listOwner:'Owner',removeMember:'Remove',removeMemberConfirm:'Remove this user from the list?',shareInviteSuccess:'User added to the list.',shareRemoveSuccess:'User removed from the list.',shareManageOwnerOnly:'Only the owner can invite or remove users.',shareEmailRequired:'Enter the email of a registered user.',shareMemberError:'Error loading the list members.',shareInviteError:'Unable to invite this user.',shareRemoveError:'Unable to remove this user.',
     shareSyncError:'Error syncing the list:',
     routeOrder:'Per-list route order',routeOrderHint:'Order applies to the active list and follows the store path.',
     suggestProducts:'Suggest',clearList:'Clear list',
@@ -410,7 +410,7 @@ async function delLoyalty(){if(!confirm(t('removeCardConfirm')))return;const {er
 function showLoyalty(){const d=S.loyaltyImg;if(!d)return alert(t('noCard'));hideDialog();$('loyaltyImg').src=d;$('loyaltyModal').classList.add('open');}
 function hideLoyalty(){$('loyaltyModal').classList.remove('open');$('loyaltyImg').src='';}
 async function ensureListRouteOrder(){
-  if(!S.listId||!S.cats.length)return;
+  if(!S.listId||!S.cats.length||!canManageCurrentList())return;
   const existing=new Map((S.catOrder||[]).map(x=>[x.category_id,x.position]));
   const missing=S.cats.filter(c=>!existing.has(c.id));
   if(!missing.length)return;
@@ -522,7 +522,7 @@ function closeDialog(event){if(event.target.id==='overlay') hideDialog();}
 /* ---- import / export ---- */
 function exportListJson(){const list=curList();const cats=orderedCats();const productsByCat={};cats.forEach(cat=>{productsByCat[cat.name]=S.prods.filter(p=>p.category_id===cat.id).map(p=>({descrizione:p.description,immagine:p.image_url||null}))});return{lista:list?.name||'lista',categorie:cats.map(c=>c.name),prodotti:productsByCat};}
 function openExportModal(){if(!S.listId) return alert(t('selectListExport'));showDialog(`<div class="modal-panel"><h3>${t('exportJson')}</h3><p>${t('exportDescription')}</p><textarea readonly>${esc(JSON.stringify(exportListJson(),null,2))}</textarea><div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('closeButton')}</button><button class="b" onclick="downloadExport()">${t('downloadJson')}</button></div></div>`)}
-function openImportModal(){if(!S.listId) return alert(t('selectListExport'));showDialog(`<div class="modal-panel"><h3>${t('importJson')}</h3><p><b>${t('importWarning')}</b> ${t('importWarningDetail')}</p><input id="importFile" type="file" accept="application/json,.json"><div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('cancel')}</button><button class="b rd" onclick="confirmImport()">${t('importOverwrite')}</button></div></div>`)}
+function openImportModal(){if(!S.listId)return alert(t('selectListExport'));if(!canManageCurrentList())return alert(t('shareManageOwnerOnly'));showDialog(`<div class="modal-panel"><h3>${t('importJson')}</h3><p><b>${t('importWarning')}</b> ${t('importWarningDetail')}</p><input id="importFile" type="file" accept="application/json,.json"><div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('cancel')}</button><button class="b rd" onclick="confirmImport()">${t('importOverwrite')}</button></div></div>`)}
 function downloadExport(){const list=curList();const data=JSON.stringify(exportListJson(),null,2);const blob=new Blob([data],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${sanitizeFileName(list?.name||'lista')}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
 function sanitizeFileName(name){return String(name).trim().replace(/[\\/:*?"<>|]+/g,'_')||'lista';}
 async function confirmImport(){const file=$('importFile').files[0];if(!file) return alert(t('chooseJson'));if(!confirm(t('confirmImport'))) return;let parsed;try{parsed=JSON.parse(await file.text())}catch{return alert(t('invalidJson'))}await importJsonToCurrentList(parsed);hideDialog();reload();}
@@ -573,22 +573,37 @@ async function clearCurrentList(){
 function vLists(){
   const hasList=!!S.listId;
   $('view').innerHTML=`<div class="card"><input id="nl" placeholder="${t('newList')}"><button class="b" onclick="addList()">${t('create')}</button></div>
-  ${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b gh" onclick="event.stopPropagation(); shareList('${l.id}')">${t('shareList')}</button><button class="b rd" aria-label="${t('delete')}" onclick="delList('${l.id}')">${icon('trash')}</button></div>`).join('')}
-  <div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">${t('exportJson')}</button><button class="b gh" onclick="openImportModal()">${t('importJson')}</button>`:`<button class="b gh" onclick="alert('${t('exportImportDisabled')}')">${t('exportJson')}/${t('importJson')}</button>`}</div>`;
+  ${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b gh" onclick="event.stopPropagation(); shareList('${l.id}')">${t('shareList')}</button>${l.owner_id===S.user?.id?`<button class="b rd" aria-label="${t('delete')}" onclick="delList('${l.id}')">${icon('trash')}</button>`:''}</div>`).join('')}
+  <div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">${t('exportJson')}</button>${canManageCurrentList()?`<button class="b gh" onclick="openImportModal()">${t('importJson')}</button>`:''}`:`<button class="b gh" onclick="alert('${t('exportImportDisabled')}')">${t('exportJson')}/${t('importJson')}</button>`}</div>`;
 }
 async function shareList(id){
   const list=S.lists.find(item=>item.id===id);
   if(!list)return;
-  const url=new URL(location.href);
-  url.searchParams.set('list',id);
-  const shareData={title:t('shareListTitle',{name:list.name}),text:t('shareListText',{name:list.name}),url:url.toString()};
-  try{
-    if(navigator.share){await navigator.share(shareData);return;}
-    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(shareData.url);return alert(t('shareLinkCopied'));}
-    prompt(t('copyShareLink'),shareData.url);
-  }catch(e){
-    if(e.name!=='AbortError')alert(e.message||t('shareError'));
-  }
+  await renderShareListDialog(list);
+}
+async function renderShareListDialog(list,notice=''){
+  const {data,error}=await sb.rpc('list_shopping_list_members',{p_list_id:list.id});
+  if(error)return alert(`${t('shareMemberError')} ${error.message}`);
+  const canManage=list.owner_id===S.user?.id;
+  const members=(data||[]).map(member=>`<div class="card"><div class="grow"><b>${esc(member.email)}</b>${member.is_owner?`<div class="product-meta">${t('listOwner')}</div>`:''}</div>${canManage&&!member.is_owner?`<button class="b rd" onclick="removeListMember('${list.id}','${member.user_id}')">${t('removeMember')}</button>`:''}</div>`).join('');
+  showDialog(`<div class="modal-panel"><h3>${t('shareListTitle',{name:esc(list.name)})}</h3>${notice?`<p>${esc(notice)}</p>`:''}${canManage?`<form onsubmit="event.preventDefault(); inviteListMember('${list.id}')"><label for="shareEmail">${t('shareEmail')}</label><input id="shareEmail" type="email" autocomplete="email" required><div class="modal-actions"><button class="b" type="submit">${t('invite')}</button></div></form>`:`<p>${t('shareManageOwnerOnly')}</p>`}<h3>${t('sharedWith')}</h3>${members||`<p>${t('noList')}</p>`}<div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('closeButton')}</button></div></div>`);
+}
+async function inviteListMember(listId){
+  const email=$('shareEmail').value.trim();
+  if(!email)return alert(t('shareEmailRequired'));
+  const button=$('shareEmail').form.querySelector('[type=submit]');
+  button.disabled=true;
+  const {error}=await sb.rpc('share_shopping_list',{p_list_id:listId,p_email:email});
+  if(error){button.disabled=false;return alert(`${t('shareInviteError')} ${error.message}`);}
+  const list=S.lists.find(item=>item.id===listId);
+  if(list)await renderShareListDialog(list,t('shareInviteSuccess'));
+}
+async function removeListMember(listId,memberId){
+  if(!confirm(t('removeMemberConfirm')))return;
+  const {error}=await sb.rpc('remove_shopping_list_member',{p_list_id:listId,p_member_id:memberId});
+  if(error)return alert(`${t('shareRemoveError')} ${error.message}`);
+  const list=S.lists.find(item=>item.id===listId);
+  if(list)await renderShareListDialog(list,t('shareRemoveSuccess'));
 }
 async function addList(){
   const n=$('nl').value.trim();
@@ -612,7 +627,17 @@ async function delList(id){if(confirm(t('deleteListConfirm'))){await sb.from('sh
 
 /* ---- categorie ---- */
 let selectedCatId=null;
-function vCats(){const cs=orderedCats();const selected=selectedCatId && cs.some(c=>c.id===selectedCatId)?selectedCatId:null;if(!selected && cs.length) selectedCatId=cs[0].id;const activeSelected=selected || selectedCatId;$('view').innerHTML=`<div class="card"><input id="nc" placeholder="${t('newCategory')}"><button class="b" onclick="addCat()">${t('add')}</button></div><div class="mu" style="margin:0 4px 6px">${t('routeOrder')}</div><div class="mu" style="margin:0 4px 10px">${t('routeOrderHint')}</div>${cs.map((c,i)=>{const isSelected=c.id===activeSelected;const row=`<div class="card ${isSelected?'sel':''}" data-cat-id="${c.id}" onclick="selectCat('${c.id}')"><div class="grow"><b>${esc(c.name)}</b></div>${isSelected?`<button class="b gh" aria-label="${t('moveUp')}" ${i===0?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},-1)">↑</button><button class="b gh" aria-label="${t('moveDown')}" ${i===cs.length-1?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},1)">↓</button><button class="b gh" aria-label="${t('rename')}" onclick="event.stopPropagation(); renCat('${c.id}')">${icon('edit')}</button><button class="b rd" aria-label="${t('delete')}" onclick="event.stopPropagation(); delCat('${c.id}')">${icon('trash')}</button>`:''}</div>`;return row;}).join('')}`;}
+function canManageCurrentList(){return curList()?.owner_id===S.user?.id;}
+function vCats(){
+  const cs=orderedCats(),canManage=canManageCurrentList();
+  const selected=selectedCatId&&cs.some(c=>c.id===selectedCatId)?selectedCatId:null;
+  if(!selected&&cs.length)selectedCatId=cs[0].id;
+  const activeSelected=selected||selectedCatId;
+  $('view').innerHTML=`${canManage?`<div class="card"><input id="nc" placeholder="${t('newCategory')}"><button class="b" onclick="addCat()">${t('add')}</button></div><div class="mu" style="margin:0 4px 6px">${t('routeOrder')}</div><div class="mu" style="margin:0 4px 10px">${t('routeOrderHint')}</div>`:''}${cs.map((c,i)=>{
+    const isSelected=c.id===activeSelected;
+    return `<div class="card ${isSelected?'sel':''}" ${canManage?`data-cat-id="${c.id}" onclick="selectCat('${c.id}')"`:''}><div class="grow"><b>${esc(c.name)}</b></div>${canManage&&isSelected?`<button class="b gh" aria-label="${t('moveUp')}" ${i===0?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},-1)">↑</button><button class="b gh" aria-label="${t('moveDown')}" ${i===cs.length-1?'disabled':''} onclick="event.stopPropagation(); moveCat(${i},1)">↓</button><button class="b gh" aria-label="${t('rename')}" onclick="event.stopPropagation(); renCat('${c.id}')">${icon('edit')}</button><button class="b rd" aria-label="${t('delete')}" onclick="event.stopPropagation(); delCat('${c.id}')">${icon('trash')}</button>`:''}</div>`;
+  }).join('')}`;
+}
 function selectCat(id){selectedCatId=id;render();}
 async function addCat(){const n=$('nc').value.trim();if(!n) return;const pos=S.cats.length?Math.max(...S.cats.map(c=>Number(c.position)))+1:0;const r=await sb.from('categories').insert({name:n,position:pos,list_id:S.listId}).select().single();if(r.error) alert(r.error.message);if(r.data){selectedCatId=r.data.id;await sb.from('list_category_order').upsert({list_id:S.listId,category_id:r.data.id,position:S.cats.length},{onConflict:'list_id,category_id'});}reload();}
 async function moveCat(i,d){
@@ -626,9 +651,10 @@ async function delCat(id){if(!confirm(t('deleteCategoryConfirm'))) return;const 
 
 /* ---- prodotti ---- */
 const filterBox=id=>`<div class="card filter-box"><input id="${id}" placeholder="${t('searchProduct')}" value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>`;
-const prodRow=(p,showCat)=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div>${showCat?`<div class="product-meta">${esc(catName(p.category_id))}</div>`:''}</div><div class="small-actions"><button class="b gh" aria-label="${t('editProduct')}" onclick="editProd('${p.id}')">${icon('edit')}</button><button class="b rd" aria-label="${t('delete')}" onclick="delProd('${p.id}')">${icon('trash')}</button></div></div></div>`;
+const prodRow=(p,showCat,editable=canManageCurrentList())=>`<div class="card"><div class="item-card">${thumb(p)}<div class="grow"><div class="product-name">${esc(p.description)}</div>${showCat?`<div class="product-meta">${esc(catName(p.category_id))}</div>`:''}</div>${editable?`<div class="small-actions"><button class="b gh" aria-label="${t('editProduct')}" onclick="editProd('${p.id}')">${icon('edit')}</button><button class="b rd" aria-label="${t('delete')}" onclick="delProd('${p.id}')">${icon('trash')}</button></div>`:''}</div></div>`;
 function vProds(){
   const cats=orderedCats();
+  const canManage=canManageCurrentList();
   const all=S.prods.filter(p=>matchesFilter(filterText,p));
   let listHtml;
   if(FLAT){
@@ -645,7 +671,7 @@ function vProds(){
     ${flatBar()}
     ${FLAT?'':expBar('prods')}
     ${listHtml}
-    <div class="card col"><input id="pd" placeholder="${t('productDescription')}"><select id="pc">${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">${icon('camera')}${t('photo')}</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">${t('addProduct')}</button></div>`;
+    ${canManage?`<div class="card col"><input id="pd" placeholder="${t('productDescription')}"><select id="pc">${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">${icon('camera')}${t('photo')}</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">${t('addProduct')}</button></div>`:''}`;
 }
 async function uploadProductImage(file){if(!file) return null;const path=crypto.randomUUID()+'-'+file.name.replace(/[^\w.]/g,'_');const u=await sb.storage.from('product-images').upload(path,file);if(u.error) throw new Error(u.error.message);return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl;}
 async function addProd(){const d=$('pd').value.trim(),c=$('pc').value;if(!d||!c) return alert(t('addProductValidation'));try{const f=$('pi').files[0];const url=await uploadProductImage(f);const r=await sb.from('products').insert({description:d,category_id:c,image_url:url,list_id:S.listId});if(r.error) alert(r.error.message);reload();}catch(e){alert(e.message||t('photoUploadError'));}}
@@ -676,7 +702,7 @@ function vPick(){
     }).join('')||`<div class="card">${t('noProducts')}</div>`;
   }
   const actions=`<div class="list-actions"><button class="b gh" onclick="suggestProductsForCurrentList()">${t('suggestProducts')}</button><button class="b rd" onclick="clearCurrentList()">${t('clearList')}</button></div>`;
-  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${actions}${FLAT?'':expBar('pick')}${body}<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`;
+  $('view').innerHTML=`${filterBox('pickFilter')}${flatBar()}${actions}${FLAT?'':expBar('pick')}${body}${canManageCurrentList()?`<div class="pick-add-spacer"></div><button class="b pick-add-btn" onclick="openAddProductModal()">${icon('cart')}${t('addProduct')}</button>`:''}`;
 }
 function openAddProductModal(){
   if(!S.listId)return alert(t('selectListFirst'));
