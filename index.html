@@ -151,7 +151,9 @@ header .who{display:block;overflow:hidden;color:var(--mu);font-size:12px;font-we
 const SUPABASE_URL='https://tdagxuyvckiageppiwbh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-let S={cats:[],prods:[],lists:[],items:[],catOrder:[],history:[],page:'lists',listId:localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
+const sharedListId=new URLSearchParams(location.search).get('list');
+let S={cats:[],prods:[],lists:[],items:[],catOrder:[],history:[],page:'lists',listId:sharedListId||localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
+let listChannel=null,watchedListId=null,listRefreshTimer=null;
 let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch{COL={}}
 let filterText='';
 let FLAT=localStorage.getItem('flatView')==='1';
@@ -193,6 +195,8 @@ const TEXT={
     closeCart:'Chiudi carrello',closeCartConfirm:'Chiudere il carrello? Gli articoli acquistati verranno rimossi dalla lista.',
     noListSelected:'Nessuna lista selezionata.',loginError:'Controlla la mail per confermare (se richiesto).',
     signInToCreateList:'Accedi prima di creare una lista.',
+    shareList:'Condividi',shareListTitle:'Lista della spesa: {name}',shareListText:'Apri e aggiorna insieme a me la lista “{name}”.',shareLinkCopied:'Link copiato. Puoi inviarlo a chi vuoi.',copyShareLink:'Copia e condividi questo link:',shareError:'Errore durante la condivisione della lista.',
+    shareSyncError:'Errore nella sincronizzazione della lista:',
     routeOrder:'Ordine percorso per lista',routeOrderHint:'L’ordine vale per la lista attiva e segue il percorso del supermercato.',
     suggestProducts:'Suggerisci',clearList:'Azzera lista',
     clearListConfirm:'Azzera la lista corrente? Verranno rimossi tutti gli articoli selezionati.',
@@ -233,6 +237,8 @@ const TEXT={
     closeCart:'Finish shopping',closeCartConfirm:'Finish shopping? Purchased items will be removed from the list.',
     noListSelected:'No list selected.',loginError:'Check your email to confirm your account (if required).',
     signInToCreateList:'Sign in before creating a list.',
+    shareList:'Share',shareListTitle:'Shopping list: {name}',shareListText:'Open and update the “{name}” list with me.',shareLinkCopied:'Link copied. You can send it to anyone.',copyShareLink:'Copy and share this link:',shareError:'Error sharing the list.',
+    shareSyncError:'Error syncing the list:',
     routeOrder:'Per-list route order',routeOrderHint:'Order applies to the active list and follows the store path.',
     suggestProducts:'Suggest',clearList:'Clear list',
     clearListConfirm:'Clear current list? All selected items will be removed.',
@@ -327,7 +333,7 @@ function restoreFocus(st){
 }
 
 async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?t('loginError'):'')}
-sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;S.user=session?.user||null;$('who').textContent=S.user?'👤 '+(S.user.user_metadata?.name||S.user.email||''):'';if(session){loadLoyalty();reload();}else S.loyaltyImg=null;});
+sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;S.user=session?.user||null;$('who').textContent=S.user?'👤 '+(S.user.user_metadata?.name||S.user.email||''):'';if(session){loadLoyalty();reload();}else{S.loyaltyImg=null;watchList(null);}});
 
 /* ---- impostazioni ---- */
 const LS={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v);return true}catch{return false}}};
@@ -461,6 +467,7 @@ async function reload(){
   ]);
   S.lists=l.data||[];
   if(!S.lists.find(x=>x.id===S.listId))S.listId=S.lists[0]?.id||null;
+  watchList(S.listId);
   S.cats=(c.data||[]).filter(x=>x.list_id===S.listId).sort((a,b)=>Number(a.position??0)-Number(b.position??0));
   S.prods=(p.data||[]).filter(x=>x.list_id===S.listId);
   S.listName=curList()?.name||'';
@@ -482,6 +489,22 @@ async function reload(){
   render();
 }
 function go(p){S.page=p;render();}
+function watchList(id){
+  if(id===watchedListId)return;
+  if(listChannel){sb.removeChannel(listChannel);listChannel=null;}
+  clearTimeout(listRefreshTimer);
+  watchedListId=id;
+  if(!id)return;
+  const refresh=()=>{clearTimeout(listRefreshTimer);listRefreshTimer=setTimeout(()=>reload(),100);};
+  listChannel=sb.channel(`shopping-list:${id}`);
+  ['categories','products','list_items','list_category_order'].forEach(table=>{
+    listChannel.on('postgres_changes',{event:'*',schema:'public',table,filter:`list_id=eq.${id}`},refresh);
+  });
+  listChannel.on('postgres_changes',{event:'*',schema:'public',table:'shopping_lists',filter:`id=eq.${id}`},refresh);
+  listChannel.subscribe(status=>{
+    if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')console.error(t('shareSyncError'),status);
+  });
+}
 const curList=()=>S.lists.find(l=>l.id===S.listId);
 const prod=id=>S.prods.find(p=>p.id===id);
 const thumb=p=>p?.image_url?`<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" onclick="event.stopPropagation(); openPhotoModal('${esc(p.image_url)}')">`:`<div class="list-avatar">${icon('cart')}</div>`;
@@ -550,8 +573,22 @@ async function clearCurrentList(){
 function vLists(){
   const hasList=!!S.listId;
   $('view').innerHTML=`<div class="card"><input id="nl" placeholder="${t('newList')}"><button class="b" onclick="addList()">${t('create')}</button></div>
-  ${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b rd" aria-label="${t('delete')}" onclick="delList('${l.id}')">${icon('trash')}</button></div>`).join('')}
+  ${S.lists.map(l=>`<div class="card ${l.id===S.listId?'sel':''}"><div class="chk">${l.id===S.listId?'✓':''}</div><div class="grow" onclick="selList('${l.id}')"><b>${esc(l.name)}</b></div><button class="b gh" onclick="event.stopPropagation(); shareList('${l.id}')">${t('shareList')}</button><button class="b rd" aria-label="${t('delete')}" onclick="delList('${l.id}')">${icon('trash')}</button></div>`).join('')}
   <div class="list-actions">${hasList?`<button class="b gh" onclick="openExportModal()">${t('exportJson')}</button><button class="b gh" onclick="openImportModal()">${t('importJson')}</button>`:`<button class="b gh" onclick="alert('${t('exportImportDisabled')}')">${t('exportJson')}/${t('importJson')}</button>`}</div>`;
+}
+async function shareList(id){
+  const list=S.lists.find(item=>item.id===id);
+  if(!list)return;
+  const url=new URL(location.href);
+  url.searchParams.set('list',id);
+  const shareData={title:t('shareListTitle',{name:list.name}),text:t('shareListText',{name:list.name}),url:url.toString()};
+  try{
+    if(navigator.share){await navigator.share(shareData);return;}
+    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(shareData.url);return alert(t('shareLinkCopied'));}
+    prompt(t('copyShareLink'),shareData.url);
+  }catch(e){
+    if(e.name!=='AbortError')alert(e.message||t('shareError'));
+  }
 }
 async function addList(){
   const n=$('nl').value.trim();
@@ -570,7 +607,7 @@ async function addList(){
     alert(e.message||t('createListError'));
   }
 }
-function selList(id){S.listId=id;localStorage.setItem('listId',id);reload();}
+function selList(id){S.listId=id;localStorage.setItem('listId',id);if(sharedListId&&id!==sharedListId){const url=new URL(location.href);url.searchParams.delete('list');history.replaceState(null,'',url);}reload();}
 async function delList(id){if(confirm(t('deleteListConfirm'))){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
 
 /* ---- categorie ---- */

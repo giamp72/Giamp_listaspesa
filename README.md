@@ -8,4 +8,7 @@ nel SQL Editor di Supabase. Per aggiornare un database già esistente e abilitar
 il salvataggio delle carte fedeltà, esegui `schema_update_loyalty.sql` nello
 stesso editor. Per abilitare template/ricorrenze, ordine percorso per lista e
 suggerimenti automatici basati sullo storico acquisti, esegui anche
-`schema_update_templates_route_suggestions.sql`.
+`schema_update_templates_route_suggestions.sql`. Per condividere le liste con
+aggiornamenti in tempo reale, esegui anche `schema_update_shared_lists.sql`.
+I destinatari devono accedere all’app; le policy RLS attuali consentono a tutti
+gli utenti autenticati di vedere e modificare le liste, non solo a chi riceve il link.
