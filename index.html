@@ -159,8 +159,9 @@ const SUPABASE_URL='https://tdagxuyvckiageppiwbh.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkYWd4dXl2Y2tpYWdlcHBpd2JoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2OTgzMDIsImV4cCI6MjEwNzI3NDMwMn0.rfAk_5IwT8NElUBbzKur1j17WPMCl_6UT2t1jud9JEU';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const sharedListId=new URLSearchParams(location.search).get('list');
-let S={cats:[],prods:[],lists:[],items:[],catOrder:[],history:[],historyError:null,page:'lists',listId:sharedListId||localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
+let S={cats:[],prods:[],lists:[],items:[],catOrder:[],history:[],historyError:null,loadError:null,page:'lists',listId:sharedListId||localStorage.getItem('listId'),listName:'',user:null,loyaltyImg:null};
 let listChannel=null,watchedListId=null,listRefreshTimer=null;
+let pendingWrites=0,writeEpoch=0,reloadAfterWrites=false;const writeChains=new Map();
 let COL={};try{COL=JSON.parse(localStorage.getItem('collapsedCats')||'{}')}catch{COL={}}
 let filterText='';
 let FLAT=localStorage.getItem('flatView')==='1';
@@ -204,6 +205,8 @@ const TEXT={
     signInToCreateList:'Accedi prima di creare una lista.',
     shareList:'Condividi',shareListTitle:'Condividi “{name}”',shareEmail:'Email dell’utente registrato',invite:'Invita',sharedWith:'Condivisa con',listOwner:'Proprietario',removeMember:'Rimuovi',removeMemberConfirm:'Rimuovere questo utente dalla lista?',shareInviteSuccess:'Utente aggiunto alla lista.',shareRemoveSuccess:'Utente rimosso dalla lista.',shareManageOwnerOnly:'Solo il proprietario può invitare o rimuovere utenti.',shareEmailRequired:'Inserisci l’email di un utente registrato.',shareMemberError:'Errore durante il caricamento degli utenti della lista.',shareInviteError:'Impossibile invitare l’utente.',shareRemoveError:'Impossibile rimuovere l’utente.',
     shareSyncError:'Errore nella sincronizzazione della lista:',
+    loadError:'Impossibile caricare i dati. Controlla la connessione.',retry:'Riprova',saveError:'Modifica non salvata:',
+    importError:'Importazione non riuscita, la lista non è stata modificata:',importDuplicate:'Il file contiene categorie duplicate o senza nome.',
     routeOrder:'Ordine percorso per lista',routeOrderHint:'L’ordine vale per la lista attiva e segue il percorso del supermercato.',
     suggestProducts:'Suggerisci',clearList:'Azzera lista',
     clearListConfirm:'Azzera la lista corrente? Verranno rimossi tutti gli articoli selezionati.',
@@ -247,6 +250,8 @@ const TEXT={
     signInToCreateList:'Sign in before creating a list.',
     shareList:'Share',shareListTitle:'Share “{name}”',shareEmail:'Email of a registered user',invite:'Invite',sharedWith:'Shared with',listOwner:'Owner',removeMember:'Remove',removeMemberConfirm:'Remove this user from the list?',shareInviteSuccess:'User added to the list.',shareRemoveSuccess:'User removed from the list.',shareManageOwnerOnly:'Only the owner can invite or remove users.',shareEmailRequired:'Enter the email of a registered user.',shareMemberError:'Error loading the list members.',shareInviteError:'Unable to invite this user.',shareRemoveError:'Unable to remove this user.',
     shareSyncError:'Error syncing the list:',
+    loadError:'Unable to load data. Check your connection.',retry:'Retry',saveError:'Change not saved:',
+    importError:'Import failed, the list was not changed:',importDuplicate:'The file contains duplicate or unnamed categories.',
     routeOrder:'Per-list route order',routeOrderHint:'Order applies to the active list and follows the store path.',
     suggestProducts:'Suggest',clearList:'Clear list',
     clearListConfirm:'Clear current list? All selected items will be removed.',
@@ -300,6 +305,14 @@ function updatePasswordToggleLabel(){
 }
 applyLanguage();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* Solo URL https del bucket product-images di questo progetto: blocca XSS e immagini esterne */
+const IMG_PREFIX=`${SUPABASE_URL}/storage/v1/object/public/product-images/`;
+const safeImg=u=>typeof u==='string'&&u.startsWith(IMG_PREFIX)&&!/["'<>\s\\`]/.test(u)?u:'';
+const imgPath=u=>safeImg(u)?decodeURIComponent(u.slice(IMG_PREFIX.length)):'';
+/* supabase-js non lancia eccezioni: restituisce {error}. must() la trasforma in eccezione. */
+function must(r){if(r&&r.error)throw r.error;return r;}
+/* Cancella il file di una foto non più usata. Riesce solo per i file caricati dall'utente stesso. */
+function removeImageFile(url){const path=imgPath(url);if(path)sb.storage.from('product-images').remove([path]).catch(()=>{});}
 const normalize=s=>String(s||'').toLowerCase().trim();
 const normCategory=s=>String(s||'Generale').trim()||'Generale';
 const matchesFilter=(text,prod)=>!text || normalize(prod.description).includes(normalize(text));
@@ -342,7 +355,13 @@ function restoreFocus(st){
 }
 
 async function auth(signup){const r=signup?await sb.auth.signUp({email:$('em').value,password:$('pw').value}):await sb.auth.signInWithPassword({email:$('em').value,password:$('pw').value});$('lerr').textContent=r.error?r.error.message:(signup?t('loginError'):'')}
-sb.auth.onAuthStateChange((_e,session)=>{$('login').hidden=!!session;$('app').hidden=!session;S.user=session?.user||null;$('who').textContent=S.user?'👤 '+(S.user.user_metadata?.name||S.user.email||''):'';if(session){loadLoyalty();reload();}else{S.loyaltyImg=null;watchList(null);}});
+sb.auth.onAuthStateChange((event,session)=>{
+  $('login').hidden=!!session;$('app').hidden=!session;S.user=session?.user||null;
+  $('who').textContent=S.user?'👤 '+(S.user.user_metadata?.name||S.user.email||''):'';
+  if(!session){reloadSeq++;S.loyaltyImg=null;watchList(null);return;}
+  /* TOKEN_REFRESHED arriva circa ogni ora: non serve ricaricare tutto */
+  if(event==='INITIAL_SESSION'||event==='SIGNED_IN'||event==='USER_UPDATED'){loadLoyalty();reload();}
+});
 
 /* ---- impostazioni ---- */
 const LS={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v);return true}catch{return false}}};
@@ -388,7 +407,7 @@ function openSettings(){
 }
 async function saveLoyalty(file){
   if(!file)return;
-  if(!S.user)return alert(t('signInToCreateList'));
+  if(!S.user)return alert(t('signInToSaveCard'));
   try{
     const imageData=await new Promise((resolve,reject)=>{
       const img=new Image(),u=URL.createObjectURL(file);
@@ -425,8 +444,8 @@ async function ensureListRouteOrder(){
   if(!missing.length)return;
   const start=(S.catOrder||[]).length;
   const rows=missing.map((c,idx)=>({list_id:S.listId,category_id:c.id,position:start+idx}));
-  await sb.from('list_category_order').upsert(rows,{onConflict:'list_id,category_id'});
-  const {data}=await sb.from('list_category_order').select('*').eq('list_id',S.listId).order('position');
+  must(await sb.from('list_category_order').upsert(rows,{onConflict:'list_id,category_id'}));
+  const {data}=must(await sb.from('list_category_order').select('*').eq('list_id',S.listId).order('position'));
   S.catOrder=data||[];
 }
 function historyGroups(rows){
@@ -468,34 +487,49 @@ function dueProductsFromHistory(rows){
   }
   return out.sort((a,b)=>b.score-a.score);
 }
+/* ---- caricamento dati ----
+   reloadSeq scarta le risposte di un reload superato da uno più recente.
+   writeEpoch/pendingWrites evitano che un reload partito prima di una modifica
+   sovrascriva lo stato ottimistico appena mostrato. */
+let reloadSeq=0;
 async function reload(){
-  const [c,p,l]=await Promise.all([
-    sb.from('categories').select('*').order('position'),
-    sb.from('products').select('*').order('description'),
-    sb.from('shopping_lists').select('*').order('created_at')
-  ]);
-  S.lists=l.data||[];
-  if(!S.lists.find(x=>x.id===S.listId))S.listId=S.lists[0]?.id||null;
-  watchList(S.listId);
-  S.cats=(c.data||[]).filter(x=>x.list_id===S.listId).sort((a,b)=>Number(a.position??0)-Number(b.position??0));
-  S.prods=(p.data||[]).filter(x=>x.list_id===S.listId);
-  S.listName=curList()?.name||'';
-  if(S.listId){
-    const [i,co,h]=await Promise.all([
-      sb.from('list_items').select('*').eq('list_id',S.listId),
-      sb.from('list_category_order').select('*').eq('list_id',S.listId).order('position'),
-      S.user?sb.from('purchase_history').select('product_id,purchased_at,product_description,category_name,quantity').eq('user_id',S.user.id).order('purchased_at',{ascending:false}).limit(800):Promise.resolve({data:[]})
-    ]);
-    S.items=i.data||[];
-    S.catOrder=co.data||[];
-    S.history=h.data||[];
-    S.historyError=h.error||null;
-    await ensureListRouteOrder();
-  }else{
-    S.items=[];
-    S.catOrder=[];
-    S.history=[];
-    S.historyError=null;
+  if(!S.user)return;
+  const seq=++reloadSeq,epoch=writeEpoch;
+  try{
+    const l=must(await sb.from('shopping_lists').select('*').order('created_at'));
+    const lists=l.data||[];
+    const listId=lists.find(x=>x.id===S.listId)?S.listId:(lists[0]?.id||null);
+    let cats=[],prods=[],items=[],catOrder=[],history=[],historyError=null;
+    if(listId){
+      const [c,p,i,co,h]=await Promise.all([
+        sb.from('categories').select('*').eq('list_id',listId).order('position'),
+        sb.from('products').select('*').eq('list_id',listId).order('description'),
+        sb.from('list_items').select('*').eq('list_id',listId),
+        sb.from('list_category_order').select('*').eq('list_id',listId).order('position'),
+        sb.from('purchase_history').select('product_id,purchased_at,product_description,category_name,quantity').eq('user_id',S.user.id).order('purchased_at',{ascending:false}).limit(800)
+      ]);
+      [c,p,i,co].forEach(must);
+      cats=(c.data||[]).sort((a,b)=>Number(a.position??0)-Number(b.position??0));
+      prods=p.data||[];items=i.data||[];catOrder=co.data||[];
+      history=h.data||[];historyError=h.error||null;
+    }
+    if(seq!==reloadSeq)return;
+    if(epoch!==writeEpoch||pendingWrites){
+      /* nel frattempo l'utente ha modificato qualcosa: ricarica dopo il salvataggio */
+      if(pendingWrites)reloadAfterWrites=true;else reload();
+      return;
+    }
+    Object.assign(S,{lists,listId,cats,prods,items,catOrder,history,historyError,loadError:null});
+    S.listName=curList()?.name||'';
+    watchList(listId);
+    if(listId){
+      try{await ensureListRouteOrder();}catch(e){console.error(e);}
+      if(seq!==reloadSeq)return;
+    }
+  }catch(e){
+    if(seq!==reloadSeq)return;
+    console.error(e);
+    S.loadError=e;
   }
   render();
 }
@@ -506,7 +540,7 @@ function watchList(id){
   clearTimeout(listRefreshTimer);
   watchedListId=id;
   if(!id)return;
-  const refresh=()=>{clearTimeout(listRefreshTimer);listRefreshTimer=setTimeout(()=>reload(),100);};
+  const refresh=()=>{clearTimeout(listRefreshTimer);listRefreshTimer=setTimeout(()=>{if(pendingWrites){reloadAfterWrites=true;return;}reload();},100);};
   listChannel=sb.channel(`shopping-list:${id}`);
   ['categories','products','list_items','list_category_order'].forEach(table=>{
     listChannel.on('postgres_changes',{event:'*',schema:'public',table,filter:`list_id=eq.${id}`},refresh);
@@ -518,12 +552,16 @@ function watchList(id){
 }
 const curList=()=>S.lists.find(l=>l.id===S.listId);
 const prod=id=>S.prods.find(p=>p.id===id);
-const thumb=p=>p?.image_url?`<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" onclick="event.stopPropagation(); openPhotoModal('${esc(p.image_url)}')">`:`<div class="list-avatar">${icon('cart')}</div>`;
+/* L'URL non finisce mai dentro onclick: lo legge da data-url */
+const thumb=p=>{const u=safeImg(p?.image_url);return u?`<img class="th" src="${esc(u)}" alt="${esc(p.description)}" data-url="${esc(u)}" onclick="event.stopPropagation(); openPhotoModal(this.dataset.url)">`:`<div class="list-avatar">${icon('cart')}</div>`;};
 function render(){
   const f=captureFocus();
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===S.page));
   $('title').innerHTML=`${icon('cart')} ${esc(curList()?.name||t('appTitle'))}`;
+  const banner=S.loadError?`<div class="card col"><b>${t('loadError')}</b><div class="mu">${esc(S.loadError.message||'')}</div><button class="b gh" onclick="reload()">${t('retry')}</button></div>`:'';
+  if(S.loadError&&!S.lists.length){$('view').innerHTML=banner;restoreFocus(f);return;}
   ({lists:vLists,cats:vCats,prods:vProds,pick:vPick,shop:vShop})[S.page]();
+  if(banner)$('view').insertAdjacentHTML('afterbegin',banner);
   restoreFocus(f);
 }
 function showDialog(html){$('dialogHost').innerHTML=html;$('dialogHost').style.display='flex';$('overlay').classList.add('open');}
@@ -536,8 +574,28 @@ function openExportModal(){if(!S.listId) return alert(t('selectListExport'));sho
 function openImportModal(){if(!S.listId)return alert(t('selectListExport'));if(!canManageCurrentList())return alert(t('shareManageOwnerOnly'));showDialog(`<div class="modal-panel"><h3>${t('importJson')}</h3><p><b>${t('importWarning')}</b> ${t('importWarningDetail')}</p><input id="importFile" type="file" accept="application/json,.json"><div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('cancel')}</button><button class="b rd" onclick="confirmImport()">${t('importOverwrite')}</button></div></div>`)}
 function downloadExport(){const list=curList();const data=JSON.stringify(exportListJson(),null,2);const blob=new Blob([data],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${sanitizeFileName(list?.name||'lista')}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
 function sanitizeFileName(name){return String(name).trim().replace(/[\\/:*?"<>|]+/g,'_')||'lista';}
-async function confirmImport(){const file=$('importFile').files[0];if(!file) return alert(t('chooseJson'));if(!confirm(t('confirmImport'))) return;let parsed;try{parsed=JSON.parse(await file.text())}catch{return alert(t('invalidJson'))}await importJsonToCurrentList(parsed);hideDialog();reload();}
-async function importJsonToCurrentList(data){if(!S.listId) throw new Error(t('noListSelected'));if(!data||!Array.isArray(data.categorie)||typeof data.prodotti!=='object'){alert(t('invalidJsonFormat'));return;}const listId=S.listId;await sb.from('list_items').delete().eq('list_id',listId);await sb.from('products').delete().eq('list_id',listId);await sb.from('categories').delete().eq('list_id',listId);const categoryMap=new Map();for(let i=0;i<data.categorie.length;i++){const name=data.categorie[i];const ins=await sb.from('categories').insert({list_id:listId,name,position:i}).select().single();if(ins.data) categoryMap.set(name,ins.data.id)}for(const catName of data.categorie){const catId=categoryMap.get(catName);const items=Array.isArray(data.prodotti[catName])?data.prodotti[catName]:[];for(const item of items){const obj=typeof item==='string'?{descrizione:item,immagine:null}:item;if(!obj.descrizione) continue;await sb.from('products').insert({list_id:listId,description:obj.descrizione,category_id:catId,image_url:obj.immagine||null})}}}
+async function confirmImport(){
+  const file=$('importFile').files[0];
+  if(!file)return alert(t('chooseJson'));
+  if(!confirm(t('confirmImport')))return;
+  let parsed;
+  try{parsed=JSON.parse(await file.text());}catch{return alert(t('invalidJson'));}
+  try{
+    if(await importJsonToCurrentList(parsed)===false)return;
+    hideDialog();
+  }catch(e){alert(`${t('importError')} ${e.message||''}`);}
+  reload();
+}
+/* Controlla il file nel browser, poi lo importa con un'unica funzione SQL:
+   o va tutto a buon fine, o la lista resta com'era. */
+async function importJsonToCurrentList(data){
+  if(!S.listId)throw new Error(t('noListSelected'));
+  if(!data||!Array.isArray(data.categorie)||!data.prodotti||typeof data.prodotti!=='object'||Array.isArray(data.prodotti)){alert(t('invalidJsonFormat'));return false;}
+  const names=data.categorie.map(n=>typeof n==='string'?n.trim():'');
+  if(names.some(n=>!n)||new Set(names.map(n=>n.toLowerCase())).size!==names.length){alert(t('importDuplicate'));return false;}
+  must(await sb.rpc('import_shopping_list',{p_list_id:S.listId,p_data:data}));
+  return true;
+}
 
 /* ---- suggerimenti automatici ---- */
 function daysBetween(a,b){return Math.max(0,Math.round((a-b)/86400000));}
@@ -588,9 +646,12 @@ async function suggestProductsForCurrentList(){
 async function clearCurrentList(){
   if(!S.listId)return;
   if(!confirm(t('clearListConfirm')))return;
-  await sb.from('list_items').delete().eq('list_id',S.listId);
-  S.items=[];
-  render();
+  const listId=S.listId;
+  try{
+    await flushWrites();
+    must(await sb.from('list_items').delete().eq('list_id',listId));
+    if(S.listId===listId){S.items=[];render();}
+  }catch(e){alert(`${t('saveError')} ${e.message||''}`);reload();}
 }
 
 /* ---- liste ---- */
@@ -632,7 +693,7 @@ async function removeListMember(listId,memberId){
 async function addList(){
   const n=$('nl').value.trim();
   if(!n) return;
-  if(!S.user)return alert(t('signInToSaveCard'));
+  if(!S.user)return alert(t('signInToCreateList'));
   try{
     const r=await sb.from('shopping_lists').insert({name:n,owner_id:S.user.id}).select().single();
     if(r.error)throw r.error;
@@ -647,7 +708,7 @@ async function addList(){
   }
 }
 function selList(id){S.listId=id;localStorage.setItem('listId',id);if(sharedListId&&id!==sharedListId){const url=new URL(location.href);url.searchParams.delete('list');history.replaceState(null,'',url);}reload();}
-async function delList(id){if(confirm(t('deleteListConfirm'))){await sb.from('shopping_lists').delete().eq('id',id);reload();}}
+async function delList(id){if(!confirm(t('deleteListConfirm')))return;try{must(await sb.from('shopping_lists').delete().eq('id',id));}catch(e){alert(`${t('saveError')} ${e.message||''}`);}reload();}
 
 /* ---- categorie ---- */
 let selectedCatId=null;
@@ -664,15 +725,15 @@ function vCats(){
   }).join('')}`;
 }
 function selectCat(id){selectedCatId=id;render();}
-async function addCat(){const n=$('nc').value.trim();if(!n) return;const pos=S.cats.length?Math.max(...S.cats.map(c=>Number(c.position)))+1:0;const r=await sb.from('categories').insert({name:n,position:pos,list_id:S.listId}).select().single();if(r.error) alert(r.error.message);if(r.data){selectedCatId=r.data.id;await sb.from('list_category_order').upsert({list_id:S.listId,category_id:r.data.id,position:S.cats.length},{onConflict:'list_id,category_id'});}reload();}
+async function addCat(){const n=$('nc').value.trim();if(!n) return;const pos=S.cats.length?Math.max(...S.cats.map(c=>Number(c.position)))+1:0;try{const r=must(await sb.from('categories').insert({name:n,position:pos,list_id:S.listId}).select().single());selectedCatId=r.data.id;must(await sb.from('list_category_order').upsert({list_id:S.listId,category_id:r.data.id,position:S.cats.length},{onConflict:'list_id,category_id'}));}catch(e){alert(e.message||t('saveError'));}reload();}
 async function moveCat(i,d){
   const arr=orderedCats();if(!arr[i+d]) return;
   [arr[i],arr[i+d]]=[arr[i+d],arr[i]];
-  await Promise.all(arr.map((c,k)=>sb.from('list_category_order').upsert({list_id:S.listId,category_id:c.id,position:k},{onConflict:'list_id,category_id'})));
+  try{must(await sb.from('list_category_order').upsert(arr.map((c,k)=>({list_id:S.listId,category_id:c.id,position:k})),{onConflict:'list_id,category_id'}));}catch(e){alert(`${t('saveError')} ${e.message||''}`);}
   const movedId=arr[i+d]?.id || arr[i]?.id;selectedCatId=movedId;reload();
 }
-async function renCat(id){const n=prompt(t('newName'));if(n){await sb.from('categories').update({name:n}).eq('id',id);reload();}}
-async function delCat(id){if(!confirm(t('deleteCategoryConfirm'))) return;const r=await sb.from('categories').delete().eq('id',id);if(!r.error){await sb.from('list_category_order').delete().eq('list_id',S.listId).eq('category_id',id);}if(r.error) alert(t('categoryInUse'));if(selectedCatId===id) selectedCatId=null;reload();}
+async function renCat(id){const n=prompt(t('newName'))?.trim();if(!n)return;try{must(await sb.from('categories').update({name:n}).eq('id',id));}catch(e){alert(`${t('saveError')} ${e.message||''}`);}reload();}
+async function delCat(id){if(!confirm(t('deleteCategoryConfirm'))) return;/* l'ordine percorso della categoria si cancella in cascata */const r=await sb.from('categories').delete().eq('id',id);if(r.error) alert(r.error.code==='23503'?t('categoryInUse'):`${t('saveError')} ${r.error.message}`);if(selectedCatId===id) selectedCatId=null;reload();}
 
 /* ---- prodotti ---- */
 const filterBox=id=>`<div class="card filter-box"><input id="${id}" placeholder="${t('searchProduct')}" value="${esc(filterText)}" oninput="filterText=this.value; render();"></div>`;
@@ -699,11 +760,11 @@ function vProds(){
     ${canManage?`<div class="card col"><input id="pd" placeholder="${t('productDescription')}"><select id="pc">${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="row"><label class="b gh camera-label" for="pi">${icon('camera')}${t('photo')}</label><input id="pi" type="file" accept="image/*" capture="environment" style="display:none"></div><button class="b wide-btn" onclick="addProd()">${t('addProduct')}</button></div>`:''}`;
 }
 async function uploadProductImage(file){if(!file) return null;const path=crypto.randomUUID()+'-'+file.name.replace(/[^\w.]/g,'_');const u=await sb.storage.from('product-images').upload(path,file);if(u.error) throw new Error(u.error.message);return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl;}
-async function addProd(){const d=$('pd').value.trim(),c=$('pc').value;if(!d||!c) return alert(t('addProductValidation'));try{const f=$('pi').files[0];const url=await uploadProductImage(f);const r=await sb.from('products').insert({description:d,category_id:c,image_url:url,list_id:S.listId});if(r.error) alert(r.error.message);reload();}catch(e){alert(e.message||t('photoUploadError'));}}
-async function editProd(id){const p=prod(id);if(!p) return;const cats=orderedCats();showDialog(`<div class="modal-panel"><h3>${t('editProduct')}</h3><div class="card col" style="margin:0"><input id="editProdDesc" value="${esc(p.description)}" placeholder="${t('productDescription')}"><select id="editProdCat">${cats.map(c=>`<option value="${c.id}" ${c.id===p.category_id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>${p.image_url?`<img class="th" src="${esc(p.image_url)}" alt="${esc(p.description)}" style="width:80px;height:80px;align-self:center">`:''}<div class="row"><label class="b gh camera-label" for="editProdImg">${icon('camera')}${t('changePhoto')}</label><input id="editProdImg" type="file" accept="image/*" capture="environment" style="display:none"></div>${p.image_url?`<button class="b rd" onclick="removeProductImage('${id}')">${icon('trash')}${t('removePhoto')}</button>`:''}<div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('cancel')}</button><button class="b" onclick="saveProductEdit('${id}')">${t('save')}</button></div></div></div>`);}
-async function removeProductImage(id){const p=prod(id);if(!p) return;if(!confirm(t('removePhotoConfirm'))) return;try{await sb.from('products').update({image_url:null}).eq('id',id);hideDialog();reload();}catch(e){alert(e.message||t('photoRemoveError'));}}
-async function saveProductEdit(id){const p=prod(id);if(!p) return;const desc=$('editProdDesc').value.trim();const cat=$('editProdCat').value;if(!desc||!cat) return alert(t('saveProductValidation'));try{const f=$('editProdImg')?.files?.[0];const payload={description:desc,category_id:cat};if(f){payload.image_url=await uploadProductImage(f);}else if(!f && !p.image_url && $('editProdImg') && $('editProdImg').files && $('editProdImg').files.length===0 && !p.image_url){payload.image_url=null;}await sb.from('products').update(payload).eq('id',id);hideDialog();reload();}catch(e){alert(e.message||t('productSaveError'));}}
-async function delProd(id){if(confirm(t('deleteProductConfirm'))){await sb.from('products').delete().eq('id',id);reload();}}
+async function addProd(){const d=$('pd').value.trim(),c=$('pc').value;if(!d||!c) return alert(t('addProductValidation'));let url=null;try{url=await uploadProductImage($('pi').files[0]);must(await sb.from('products').insert({description:d,category_id:c,image_url:url,list_id:S.listId}));}catch(e){if(url)removeImageFile(url);alert(e.message||t('addProductError'));}reload();}
+async function editProd(id){const p=prod(id);if(!p) return;const cats=orderedCats();showDialog(`<div class="modal-panel"><h3>${t('editProduct')}</h3><div class="card col" style="margin:0"><input id="editProdDesc" value="${esc(p.description)}" placeholder="${t('productDescription')}"><select id="editProdCat">${cats.map(c=>`<option value="${c.id}" ${c.id===p.category_id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>${safeImg(p.image_url)?`<img class="th" src="${esc(safeImg(p.image_url))}" alt="${esc(p.description)}" style="width:80px;height:80px;align-self:center">`:''}<div class="row"><label class="b gh camera-label" for="editProdImg">${icon('camera')}${t('changePhoto')}</label><input id="editProdImg" type="file" accept="image/*" capture="environment" style="display:none"></div>${p.image_url?`<button class="b rd" onclick="removeProductImage('${id}')">${icon('trash')}${t('removePhoto')}</button>`:''}<div class="modal-actions"><button class="b gh" onclick="hideDialog()">${t('cancel')}</button><button class="b" onclick="saveProductEdit('${id}')">${t('save')}</button></div></div></div>`);}
+async function removeProductImage(id){const p=prod(id);if(!p) return;if(!confirm(t('removePhotoConfirm'))) return;try{must(await sb.from('products').update({image_url:null}).eq('id',id));removeImageFile(p.image_url);hideDialog();}catch(e){alert(e.message||t('photoRemoveError'));}reload();}
+async function saveProductEdit(id){const p=prod(id);if(!p) return;const desc=$('editProdDesc').value.trim();const cat=$('editProdCat').value;if(!desc||!cat) return alert(t('saveProductValidation'));let newUrl=null;try{const f=$('editProdImg')?.files?.[0];const payload={description:desc,category_id:cat};if(f){newUrl=await uploadProductImage(f);payload.image_url=newUrl;}must(await sb.from('products').update(payload).eq('id',id));if(newUrl)removeImageFile(p.image_url);hideDialog();}catch(e){if(newUrl)removeImageFile(newUrl);alert(e.message||t('productSaveError'));}reload();}
+async function delProd(id){if(!confirm(t('deleteProductConfirm')))return;const p=prod(id);try{must(await sb.from('products').delete().eq('id',id));if(p)removeImageFile(p.image_url);}catch(e){alert(`${t('saveError')} ${e.message||''}`);}reload();}
 
 /* ---- lista (selezione articoli) ---- */
 function pickRow(p,showCat){
@@ -753,9 +814,47 @@ async function addProductFromPick(){
     if($('pickProductSubmit'))$('pickProductSubmit').disabled=false;
   }
 }
-function dbFail(r){if(r&&r.error){alert(r.error.message);reload();}}
-function toggleItem(pid){const ex=S.items.find(i=>i.product_id===pid);if(ex){S.items=S.items.filter(i=>i!==ex);render();sb.from('list_items').delete().eq('id',ex.id).then(dbFail);}else{const row={id:crypto.randomUUID(),list_id:S.listId,product_id:pid,quantity:1,status:'to_buy'};S.items=[...S.items,row];render();sb.from('list_items').insert(row).then(dbFail);}}
-function changeQty(pid,delta){const item=S.items.find(i=>i.product_id===pid);const current=item?Number(item.quantity||1):1;const next=Math.max(1,current+delta);if(!item){const row={id:crypto.randomUUID(),list_id:S.listId,product_id:pid,quantity:next,status:'to_buy'};S.items=[...S.items,row];render();sb.from('list_items').insert(row).then(dbFail);}else{item.quantity=next;render();sb.from('list_items').update({quantity:next}).eq('id',item.id).then(dbFail);}}
+/* ---- scritture ottimistiche ----
+   Le modifiche allo stesso prodotto partono una dopo l'altra, nell'ordine dei tap:
+   così un "aggiungi" seguito da "togli" non può arrivare al server invertito.
+   Le righe sono identificate da lista+prodotto, non dall'id locale. */
+function queueWrite(key,fn){
+  pendingWrites++;writeEpoch++;
+  const prev=writeChains.get(key)||Promise.resolve();
+  const next=prev.then(fn).then(must).catch(e=>{alert(`${t('saveError')} ${e.message||''}`);reloadAfterWrites=true;}).finally(()=>{
+    pendingWrites--;
+    if(writeChains.get(key)===next)writeChains.delete(key);
+    if(!pendingWrites&&reloadAfterWrites){reloadAfterWrites=false;reload();}
+  });
+  writeChains.set(key,next);
+  return next;
+}
+const flushWrites=()=>Promise.allSettled([...writeChains.values()]);
+const itemRow=(listId,pid,quantity)=>({id:crypto.randomUUID(),list_id:listId,product_id:pid,quantity,status:'to_buy'});
+function toggleItem(pid){
+  const listId=S.listId,ex=S.items.find(i=>i.product_id===pid);
+  if(ex){
+    S.items=S.items.filter(i=>i!==ex);render();
+    queueWrite(pid,()=>sb.from('list_items').delete().eq('list_id',listId).eq('product_id',pid));
+  }else{
+    const row=itemRow(listId,pid,1);
+    S.items=[...S.items,row];render();
+    queueWrite(pid,()=>sb.from('list_items').upsert(row,{onConflict:'list_id,product_id',ignoreDuplicates:true}));
+  }
+}
+function changeQty(pid,delta){
+  const listId=S.listId,item=S.items.find(i=>i.product_id===pid);
+  const next=Math.max(1,(item?Number(item.quantity||1):1)+delta);
+  if(!item){
+    const row=itemRow(listId,pid,next);
+    S.items=[...S.items,row];render();
+    const {id:_localId,...data}=row;/* se la riga esiste già aggiorna solo i dati, non l'id */
+    queueWrite(pid,()=>sb.from('list_items').upsert(data,{onConflict:'list_id,product_id'}));
+  }else{
+    item.quantity=next;render();
+    queueWrite(pid,()=>sb.from('list_items').update({quantity:next}).eq('list_id',listId).eq('product_id',pid));
+  }
+}
 
 /* ---- spesa ---- */
 function vShop(){
@@ -787,32 +886,22 @@ function vShop(){
   }
   $('view').innerHTML=`<div class="shop-view">${html}</div>`;
 }
-function buy(id,v){const it=S.items.find(i=>i.id===id);if(it)it.status=v?'purchased':'to_buy';render();sb.from('list_items').update({status:v?'purchased':'to_buy',updated_at:new Date().toISOString()}).eq('id',id).then(dbFail);}
+function buy(id,v){const it=S.items.find(i=>i.id===id);if(!it)return;const listId=S.listId,pid=it.product_id,status=v?'purchased':'to_buy';it.status=status;render();queueWrite(pid,()=>sb.from('list_items').update({status,updated_at:new Date().toISOString()}).eq('list_id',listId).eq('product_id',pid));}
+/* Chiusura carrello in un'unica operazione SQL: registra nello storico e
+   rimuove gli articoli acquistati insieme, leggendoli dal database. */
 async function closeCart(){
   if(!confirm(t('closeCartConfirm'))) return;
-  const purchased=(S.items||[]).filter(i=>i.status==='purchased');
-  if(purchased.length&&S.user){
-    const now=new Date().toISOString();
-    const rows=purchased.map(i=>{
-      const p=prod(i.product_id);
-      return {
-        user_id:S.user.id,
-        list_id:S.listId,
-        product_id:i.product_id,
-        product_description:p?.description||'',
-        category_name:p?catName(p.category_id):'',
-        quantity:Number(i.quantity||1),
-        purchased_at:now
-      };
-    });
-    const {error}=await sb.from('purchase_history').insert(rows);
-    if(error){alert(`${t('historySaveError')} ${error.message}`);return;}
+  const listId=S.listId;
+  if(!listId)return;
+  try{
+    await flushWrites();
+    must(await sb.rpc('close_shopping_cart',{p_list_id:listId}));
+  }catch(e){
+    alert(`${t('closeCartError')} ${e.message||''}`);
   }
-  const {error}=await sb.from('list_items').delete().eq('list_id',S.listId).eq('status','purchased');
-  if(error){alert(`${t('closeCartError')} ${error.message}`);return;}
   reload();
 }
-function openPhotoModal(url){$('photoModalImg').src=url;$('photoModal').classList.add('open');}
+function openPhotoModal(url){url=safeImg(url);if(!url)return;$('photoModalImg').src=url;$('photoModal').classList.add('open');}
 function hidePhotoModal(){$('photoModal').classList.remove('open');$('photoModalImg').src='';}
 function closePhotoModal(event){if(event.target.id==='photoModal') hidePhotoModal();}
 </script>

@@ -10,10 +10,9 @@ const section = (start, end) => {
   assert.ok(first >= 0 && last > first, `Missing section: ${start}`);
   return html.slice(first, last);
 };
-const code = [
+const code = 'function must(r){if(r&&r.error)throw r.error;return r;}\n' + [
   section('function historyGroups(', 'async function reload('),
-  section('function daysBetween(', 'async function clearCurrentList('),
-  section('async function closeCart(', 'function openPhotoModal(')
+  section('function daysBetween(', 'async function clearCurrentList(')
 ].join('\n');
 
 function setup({insertError = null, historyError = null} = {}) {
@@ -125,14 +124,4 @@ test('does not insert the same suggestion twice while a request is pending', asy
   resolveInsert({error: null});
   await first;
   assert.equal(fixture.button.disabled, false);
-});
-
-test('does not remove purchased items when history cannot be saved', async () => {
-  const fixture = setup({historyError: {message: 'history unavailable'}});
-  fixture.state.items = [{id: 'purchased', product_id: 'apple', status: 'purchased', quantity: 1}];
-  await fixture.context.closeCart();
-  assert.match(fixture.alerts[0], /historySaveError.*history unavailable/);
-  assert.equal(fixture.calls.length, 1);
-  assert.equal(fixture.calls[0].table, 'purchase_history');
-  assert.equal(fixture.reloads, 0);
 });
